@@ -14,12 +14,12 @@ export default function Setting() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn || 11 });
+    if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn ?? 11 });
   }, [user]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn || 11 });
+    if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn ?? 11 });
     setTimeout(() => setRefreshing(false), 300);
   };
 
@@ -102,8 +102,20 @@ export default function Setting() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">PPN (%)</label>
-              <input type="number" value={toko.ppn} onChange={(e) => setToko({...toko, ppn: parseFloat(e.target.value) || 11})}
-                className="w-32 px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+              <div className="flex items-center gap-3">
+                <input type="number" value={toko.ppn} onChange={(e) => setToko({...toko, ppn: parseFloat(e.target.value) || 0})}
+                  disabled={toko.ppn === 0}
+                  className="w-32 px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:bg-gray-50" />
+                <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-dark-400">
+                  <input
+                    type="checkbox"
+                    checked={toko.ppn > 0}
+                    onChange={(e) => setToko({...toko, ppn: e.target.checked ? 11 : 0})}
+                    className="w-4 h-4 accent-primary-500 cursor-pointer"
+                  />
+                  Pakai PPN
+                </label>
+              </div>
             </div>
             <button onClick={saveToko}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all">
