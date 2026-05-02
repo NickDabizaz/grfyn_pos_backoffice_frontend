@@ -12,22 +12,22 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  color: #1C1917;
-  background: #FEFAE0;
+  color: #4B3E34;
+  background: #FDF8F2;
   min-height: 100vh;
 }
 
 #root { min-height: 100vh; }
 
 @layer base {
-  ::selection { background: #E76F5120; color: #E76F51; }
+  ::selection { background: #C4683D20; color: #C4683D; }
 }
 
 @layer components {
   .glass {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 253, 249, 0.8);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 253, 249, 0.6);
   }
 
   .card-hover {
@@ -35,7 +35,7 @@ body {
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px -8px rgba(231, 111, 81, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 12px 40px -8px rgba(196, 104, 61, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.05);
   }
 
   .animate-in {
@@ -70,14 +70,14 @@ body {
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(231, 111, 81, 0.4); }
-    50% { box-shadow: 0 0 0 12px rgba(231, 111, 81, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 104, 61, 0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(196, 104, 61, 0); }
   }
 
   .scrollbar-thin::-webkit-scrollbar { width: 6px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background: #E7E5E4; border-radius: 3px; }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #D6D3D1; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #D7CAC1; border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #C2AFA2; }
 
   .input-upper { text-transform: uppercase; }
   .input-upper::placeholder { text-transform: none; }
