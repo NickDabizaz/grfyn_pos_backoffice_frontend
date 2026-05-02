@@ -3,18 +3,25 @@ import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Store, Key, Image, Save } from 'lucide-react';
+import { Store, Key, Image, Save, RefreshCw } from 'lucide-react';
 
 export default function Setting() {
-  const user = useAuthStore((s) => s.user);
-  const updateUser = useAuthStore((s) => s.updateUser);
-  const [toko, setToko] = useState({ namatoko: '', alamat: '', hp: '', email: '', ppn: 11 });
+  const user                    = useAuthStore((s) => s.user);
+  const updateUser              = useAuthStore((s) => s.updateUser);
+  const [toko, setToko]         = useState({ namatoko: '', alamat: '', hp: '', email: '', ppn: 11 });
   const [password, setPassword] = useState({ oldPass: '', newPass: '' });
   const [logo, setLogo] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn || 11 });
   }, [user]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    if (user) setToko({ namatoko: user.namatoko || '', alamat: user.alamat || '', hp: user.hp || '', email: user.email || '', ppn: user.ppn || 11 });
+    setTimeout(() => setRefreshing(false), 300);
+  };
 
   const saveToko = async () => {
     try {
@@ -52,9 +59,16 @@ export default function Setting() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-dark-500">Setting</h2>
-        <p className="text-sm text-dark-300">Konfigurasi toko & akun</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-dark-500">Setting</h2>
+          <p className="text-sm text-dark-300">Konfigurasi toko & akun</p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing}
+          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          title="Refresh halaman">
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -3,7 +3,8 @@ import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
-import { Plus, Search, ShoppingBag, X, Trash2, Ban, Download, FileText, Upload } from 'lucide-react';
+import { Plus, Search, ShoppingBag, X, Trash2, Ban, Download, FileText, Upload, RefreshCw } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -41,10 +42,18 @@ export default function Pembelian() {
   const [cart, setCart] = useState([]);
   const [supplier, setSupplier] = useState(null);
   const [searchCart, setSearchCart] = useState('');
+  const [usePpn, setUsePpn] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const user = useAuthStore((s) => s.user);
 
   const loadBeli = useCallback(() => { api.get('/beli').then((r) => setBeli(r.data)); }, []);
   useEffect(() => { loadBeli(); api.get('/supplier').then((r) => setSuppliers(r.data)); }, [loadBeli]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadBeli(), api.get('/supplier').then((r) => setSuppliers(r.data))]);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     if (!searchCart) { setBarang([]); return; }
@@ -61,13 +70,14 @@ export default function Pembelian() {
     setSearchCart(''); setBarang([]);
   };
 
-  const grandTotal = cart.reduce((sum, c) => sum + (c.harga * c.jml) + ((c.harga * c.jml * (user?.ppn || 11)) / 100), 0);
+  const grandTotal = cart.reduce((sum, c) => sum + (c.harga * c.jml) + (usePpn ? (c.harga * c.jml * (user?.ppn || 11)) / 100 : 0), 0);
 
   const handleSubmit = async () => {
     if (!cart.length) return toast.error('Keranjang kosong');
     try {
       const payload = {
         idsupplier: supplier?.idsupplier || 1, idkasir: user?.iduser, grandtotal: grandTotal, bayar: grandTotal,
+        useppn: usePpn,
         items: cart.map((c) => ({ idbarang: c.idbarang, jml: c.jml, harga: c.harga })),
       };
       await api.post('/beli', payload);
@@ -89,6 +99,11 @@ export default function Pembelian() {
           <p className="text-sm text-dark-300">Catat pembelian barang dari supplier</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-accent-500/20 active:scale-[0.98]">
             <Plus className="w-4 h-4" /> Pembelian Baru
           </button>
@@ -156,11 +171,20 @@ export default function Pembelian() {
 
             <div className="mb-4">
               <label className="block text-xs font-semibold text-dark-400 mb-1">Supplier</label>
-              <select onChange={(e) => { const s = suppliers.find((s) => s.idsupplier === parseInt(e.target.value)); setSupplier(s); }}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm input-upper" value={supplier?.idsupplier || ''}>
-                <option value="">PILIH SUPPLIER</option>
-                {suppliers.map((s) => <option key={s.idsupplier} value={s.idsupplier}>{s.namasupplier}</option>)}
-              </select>
+              <SearchableSelect
+                value={supplier?.idsupplier || ''}
+                onChange={(val) => { const s = suppliers.find((s) => s.idsupplier === parseInt(val)); setSupplier(s || null); }}
+                options={suppliers.map((s) => ({ value: s.idsupplier, label: `${s.namasupplier} (${s.kodesupplier})` }))}
+                placeholder="PILIH SUPPLIER..."
+              />
+            </div>
+
+            <div className="mb-4 flex items-center gap-3 p-3 rounded-xl bg-warm-50">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={usePpn} onChange={(e) => setUsePpn(e.target.checked)}
+                  className="w-4 h-4 rounded accent-primary-500" />
+                <span className="text-xs font-semibold text-dark-400">Pakai PPN ({user?.ppn || 11}%)</span>
+              </label>
             </div>
 
             <div className="relative mb-4">

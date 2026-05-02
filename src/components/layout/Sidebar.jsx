@@ -6,28 +6,28 @@ import {
 } from 'lucide-react';
 
 const menu = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/',    label: 'Dashboard',   icon: LayoutDashboard },
   { to: '/pos', label: 'POS / Kasir', icon: ShoppingCart },
   {
     label: 'Master', icon: Package, children: [
-      { to: '/master/barang', label: 'Barang' },
+      { to: '/master/barang',   label: 'Barang' },
       { to: '/master/supplier', label: 'Supplier' },
       { to: '/master/customer', label: 'Customer' },
-      { to: '/master/akun', label: 'Akun' },
+      { to: '/master/akun',     label: 'Akun' },
     ]
   },
   { to: '/pembelian', label: 'Pembelian', icon: ShoppingBag },
   { to: '/penjualan', label: 'Penjualan', icon: ReceiptText },
-  { to: '/stok', label: 'Stok', icon: Warehouse },
-  { to: '/resep', label: 'Resep', icon: Beaker },
-  { to: '/kas', label: 'Kas', icon: Coins },
-  { to: '/laporan', label: 'Laporan', icon: FileBarChart },
-  { to: '/setting', label: 'Setting', icon: Settings },
+  { to: '/stok',      label: 'Stok',      icon: Warehouse },
+  { to: '/resep',     label: 'Resep',     icon: Beaker },
+  { to: '/kas',       label: 'Kas',       icon: Coins },
+  { to: '/laporan',   label: 'Laporan',   icon: FileBarChart },
+  { to: '/setting',   label: 'Setting',   icon: Settings },
 ];
 
 export default function Sidebar() {
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const user                        = useAuthStore((s) => s.user);
+  const logout                      = useAuthStore((s) => s.logout);
   const [openMaster, setOpenMaster] = useState(true);
 
   return (

@@ -4,7 +4,7 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -43,6 +43,8 @@ export default function Penjualan() {
   const [showPayment, setShowPayment] = useState(false);
   const [showJualList, setShowJualList] = useState(false);
   const [bayar, setBayar] = useState('');
+  const [usePpn, setUsePpn] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
@@ -61,8 +63,14 @@ export default function Penjualan() {
   }, []);
   useEffect(() => { loadJual(); }, [loadJual]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([api.get('/customer').then((r) => setCustomers(r.data)), loadJual()]);
+    setRefreshing(false);
+  };
+
   const grandTotal = items.reduce((sum, item) => {
-    const ppn = (item.harga * item.jml * (user?.ppn || 11)) / 100;
+    const ppn = usePpn ? (item.harga * item.jml * (user?.ppn || 11)) / 100 : 0;
     const diskon = item.diskon ? (item.harga * item.jml * item.diskon) / 100 : 0;
     return sum + (item.harga * item.jml) + ppn - diskon;
   }, 0);
@@ -73,6 +81,7 @@ export default function Penjualan() {
     try {
       const payload = {
         idcustomer: customer?.idcustomer || 1, idkasir: user?.iduser, grandtotal: grandTotal, bayar: amount, kembali: amount - grandTotal,
+        useppn: usePpn,
         items: items.map((item) => ({ idbarang: item.idbarang, jml: item.jml, harga: item.hargajual_terbaru || item.harga, diskon: item.diskon || 0 })),
       };
       await api.post('/jual', payload);
@@ -96,6 +105,11 @@ export default function Penjualan() {
           <p className="text-sm text-dark-300">POS Back Office</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
             className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
@@ -201,7 +215,7 @@ export default function Penjualan() {
 
           <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5">
             {items.map((item) => {
-              const ppn = (item.harga * item.jml * (user?.ppn || 11)) / 100;
+              const ppn = usePpn ? (item.harga * item.jml * (user?.ppn || 11)) / 100 : 0;
               const diskon = item.diskon ? (item.harga * item.jml * item.diskon) / 100 : 0;
               const subtotal = (item.harga * item.jml) + ppn - diskon;
               return (
@@ -228,8 +242,8 @@ export default function Penjualan() {
               <span className="font-semibold text-dark-500">{formatRupiah(items.reduce((s, i) => s + i.harga * i.jml, 0))}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-dark-300">PPN ({user?.ppn || 11}%)</span>
-              <span className="font-semibold text-dark-500">{formatRupiah(items.reduce((s, i) => s + (i.harga * i.jml * (user?.ppn || 11)) / 100, 0))}</span>
+              <span className="text-dark-300">PPN {usePpn ? `(${user?.ppn || 11}%)` : '(Nonaktif)'}</span>
+              <span className="font-semibold text-dark-500">{formatRupiah(usePpn ? items.reduce((s, i) => s + (i.harga * i.jml * (user?.ppn || 11)) / 100, 0) : 0)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold">
               <span className="text-dark-500">Total</span>
@@ -255,6 +269,13 @@ export default function Penjualan() {
               <p className="text-3xl font-bold text-primary-600 mt-1">{formatRupiah(grandTotal)}</p>
             </div>
             <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-warm-50">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={usePpn} onChange={(e) => setUsePpn(e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary-500" />
+                  <span className="text-xs font-semibold text-dark-400">Pakai PPN ({user?.ppn || 11}%)</span>
+                </label>
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Jumlah Bayar</label>
                 <input type="number" value={bayar} onChange={(e) => setBayar(e.target.value)}

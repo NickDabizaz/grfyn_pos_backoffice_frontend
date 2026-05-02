@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Search, AlertTriangle, ChevronDown, ChevronUp, Download, FileText, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, AlertTriangle, ChevronDown, ChevronUp, Download, FileText, Upload, RefreshCw } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 const INIT = { namabarang: '', satuanbesar: '', satuansedang: '', satuankecil: '', konversi1: 0, konversi2: 0, jenis: 'BAHAN JADI', stokmin: 0, hargabeli: '', hargajual: '' };
 
@@ -35,21 +36,31 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Barang() {
-  const [barang, setBarang] = useState([]);
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [warnings, setWarnings] = useState([]);
-  const [form, setForm] = useState({...INIT});
+  const [barang, setBarang]           = useState([]);
+  const [search, setSearch]           = useState('');
+  const [showForm, setShowForm]       = useState(false);
+  const [editId, setEditId]           = useState(null);
+  const [warnings, setWarnings]       = useState([]);
+  const [form, setForm]               = useState({...INIT});
   const [historyBeli, setHistoryBeli] = useState([]);
   const [historyJual, setHistoryJual] = useState([]);
   const [showHistory, setShowHistory] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = () => {
     const params = search ? { search } : {};
     api.get('/barang', { params }).then((r) => setBarang(r.data));
   };
   useEffect(() => { load(); api.get('/barang/check-price').then((r) => setWarnings(r.data.warnings)); }, [search]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      new Promise((r) => { load(); setTimeout(r, 200); }),
+      api.get('/barang/check-price').then((r) => setWarnings(r.data.warnings))
+    ]);
+    setRefreshing(false);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -65,16 +76,16 @@ export default function Barang() {
   const handleEdit = (b) => {
     setEditId(b.idbarang);
     setForm({
-      namabarang: b.namabarang,
-      satuanbesar: b.satuanbesar || '',
+      namabarang  : b.namabarang,
+      satuanbesar : b.satuanbesar || '',
       satuansedang: b.satuansedang || '',
-      satuankecil: b.satuankecil || '',
-      konversi1: b.konversi1 || 0,
-      konversi2: b.konversi2 || 0,
-      jenis: b.jenis || 'BAHAN JADI',
-      stokmin: b.stokmin || 0,
-      hargabeli: b.hargabeli_terbaru || '',
-      hargajual: b.hargajual_terbaru || ''
+      satuankecil : b.satuankecil || '',
+      konversi1   : b.konversi1 || 0,
+      konversi2   : b.konversi2 || 0,
+      jenis       : b.jenis || 'BAHAN JADI',
+      stokmin     : b.stokmin || 0,
+      hargabeli   : b.hargabeli_terbaru || '',
+      hargajual   : b.hargajual_terbaru || ''
     });
     setShowForm(true);
   };
@@ -99,6 +110,11 @@ export default function Barang() {
           <p className="text-sm text-dark-300">Manajemen produk dan harga</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button onClick={() => { setEditId(null); setForm({...INIT}); setShowForm(true); }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
             <Plus className="w-4 h-4" /> Tambah Barang
@@ -135,18 +151,18 @@ export default function Barang() {
           <table className="w-full min-w-[900px]">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-primary-50 bg-warm-50/50">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Kode</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Nama Barang</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Sat Bsr</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Sat Sdg</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Sat Kcl</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-16">K1</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-16">K2</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Jenis</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-dark-300">Harga Beli</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-dark-300">Harga Jual</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300">Stok Min</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Kode</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Nama Barang</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Bsr</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Sdg</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Kcl</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-16">K1</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-16">K2</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Jenis</th>
+                <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Beli</th>
+                <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Jual</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300">Stok Min</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -260,11 +276,11 @@ export default function Barang() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-dark-400 mb-1">Jenis</label>
-                  <select value={form.jenis} onChange={(e) => setForm({...form, jenis: e.target.value})}
-                    className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white">
-                    <option value="BAHAN JADI">BAHAN JADI</option>
-                    <option value="BAHAN BAKU">BAHAN BAKU</option>
-                  </select>
+                  <SearchableSelect
+                    value={form.jenis}
+                    onChange={(val) => setForm({...form, jenis: val})}
+                    options={[{ value: 'BAHAN JADI', label: 'BAHAN JADI' }, { value: 'BAHAN BAKU', label: 'BAHAN BAKU' }]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-dark-400 mb-1">Stok Minimum</label>

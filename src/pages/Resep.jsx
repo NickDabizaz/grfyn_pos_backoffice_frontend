@@ -2,29 +2,36 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Search, X, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, ChevronDown, RefreshCw } from 'lucide-react';
 
 const INIT_DTL = { idbarang: '', jml: '', satuan: '', harga: '' };
 const INIT_FORM = { idbarang: '', details: [] };
 
 export default function Resep() {
-  const [resep, setResep] = useState([]);
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({...INIT_FORM});
-  const [barangJadi, setBarangJadi] = useState([]);
-  const [barangBaku, setBarangBaku] = useState([]);
+  const [resep, setResep]                       = useState([]);
+  const [search, setSearch]                     = useState('');
+  const [showForm, setShowForm]                 = useState(false);
+  const [editId, setEditId]                     = useState(null);
+  const [form, setForm]                         = useState({...INIT_FORM});
+  const [barangJadi, setBarangJadi]             = useState([]);
+  const [barangBaku, setBarangBaku]             = useState([]);
   const [searchBarangJadi, setSearchBarangJadi] = useState('');
   const [searchBarangBaku, setSearchBarangBaku] = useState('');
   const [showView, setShowView] = useState(null);
   const [viewData, setViewData] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = () => {
     const params = search ? { search } : {};
     api.get('/resep', { params }).then((r) => setResep(r.data));
   };
   useEffect(() => { load(); }, [search]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await new Promise((r) => { load(); setTimeout(r, 200); });
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -109,10 +116,17 @@ export default function Resep() {
           <h2 className="text-2xl font-bold text-dark-500">Resep</h2>
           <p className="text-sm text-dark-300">Manajemen resep / formula produk</p>
         </div>
-        <button onClick={() => { setEditId(null); setSearchBarangJadi(''); setSearchBarangBaku(''); setForm({...INIT_FORM}); setShowForm(true); }}
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setEditId(null); setSearchBarangJadi(''); setSearchBarangBaku(''); setForm({...INIT_FORM}); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Resep
         </button>
+      </div>
       </div>
 
       <div className="relative max-w-md">
@@ -126,9 +140,9 @@ export default function Resep() {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-primary-50 bg-warm-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Resep</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Barang Jadi</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Barang</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Kode Resep</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Barang Jadi</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Kode Barang</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
               </tr>
@@ -161,9 +175,9 @@ export default function Resep() {
                         <table className="w-full">
                           <thead>
                             <tr className="border-b border-primary-50 text-dark-300">
-                              <th className="text-left py-1.5 font-semibold">Bahan Baku</th>
+                              <th className="text-left  py-1.5 font-semibold">Bahan Baku</th>
                               <th className="text-right py-1.5 font-semibold">Jml</th>
-                              <th className="text-left py-1.5 font-semibold">Satuan</th>
+                              <th className="text-left  py-1.5 font-semibold">Satuan</th>
                               <th className="text-right py-1.5 font-semibold">Harga</th>
                               <th className="text-right py-1.5 font-semibold">Subtotal</th>
                             </tr>
@@ -238,12 +252,12 @@ export default function Resep() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-primary-50 bg-warm-50/50">
-                          <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300">Bahan Baku</th>
-                          <th className="text-right px-3 py-2 text-[10px] font-semibold text-dark-300 w-20">Jumlah</th>
-                          <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300 w-20">Satuan</th>
-                          <th className="text-right px-3 py-2 text-[10px] font-semibold text-dark-300 w-28">Harga</th>
-                          <th className="text-right px-3 py-2 text-[10px] font-semibold text-dark-300 w-28">Subtotal</th>
-                          <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300 w-10"></th>
+                          <th className="text-left    px-3 py-2 text-[10px] font-semibold text-dark-300">Bahan Baku</th>
+                          <th className="text-right   px-3 py-2 text-[10px] font-semibold text-dark-300 w-20">Jumlah</th>
+                          <th className="text-left    px-3 py-2 text-[10px] font-semibold text-dark-300 w-20">Satuan</th>
+                          <th className="text-right   px-3 py-2 text-[10px] font-semibold text-dark-300 w-28">Harga</th>
+                          <th className="text-right   px-3 py-2 text-[10px] font-semibold text-dark-300 w-28">Subtotal</th>
+                          <th className="text-center  px-3 py-2 text-[10px] font-semibold text-dark-300 w-10"></th>
                         </tr>
                       </thead>
                       <tbody>

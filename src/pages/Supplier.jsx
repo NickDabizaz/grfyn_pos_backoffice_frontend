@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Search, Download, FileText, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -32,12 +32,13 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Supplier() {
-  const [data, setData] = useState([]);
-  const [search, setSearch] = useState('');
+  const [data, setData]         = useState([]);
+  const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId]     = useState(null);
   const [form, setForm] = useState({ namasupplier: '', alamat: '', hp: '' });
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +53,12 @@ export default function Supplier() {
   }, [search]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -89,6 +96,11 @@ export default function Supplier() {
           <p className="text-sm text-dark-300">Manajemen data supplier</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button onClick={() => { setEditId(null); setForm({ namasupplier: '', alamat: '', hp: '' }); setShowForm(true); }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
             <Plus className="w-4 h-4" /> Tambah Supplier
@@ -119,10 +131,10 @@ export default function Supplier() {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-primary-50 bg-warm-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Nama</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Alamat</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">HP</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Kode</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Nama</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Alamat</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">HP</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
               </tr>
             </thead>

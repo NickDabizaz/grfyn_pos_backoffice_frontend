@@ -2,19 +2,21 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 const EMPTY_DETAIL = { idakun: '', catatan: '', amount: '' };
 
 export default function Kas() {
-  const [kas, setKas] = useState([]);
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [akun, setAkun] = useState([]);
-  const [form, setForm] = useState({ details: [{ ...EMPTY_DETAIL }] });
+  const [kas, setKas]                         = useState([]);
+  const [search, setSearch]                   = useState('');
+  const [showForm, setShowForm]               = useState(false);
+  const [editId, setEditId]                   = useState(null);
+  const [akun, setAkun]                       = useState([]);
+  const [form, setForm]                       = useState({ details: [{ ...EMPTY_DETAIL }] });
   const [expandedId, setExpandedId] = useState(null);
   const [expandedDetails, setExpandedDetails] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = () => {
     const params = search ? { search } : {};
@@ -23,6 +25,12 @@ export default function Kas() {
   useEffect(() => { load(); }, [search]);
 
   useEffect(() => { api.get('/akun').then((r) => setAkun(r.data)); }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([new Promise((r) => { load(); setTimeout(r, 200); }), api.get('/akun').then((r) => setAkun(r.data))]);
+    setRefreshing(false);
+  };
 
   const totalJumlah = form.details.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
 
@@ -58,9 +66,9 @@ export default function Kas() {
     setEditId(k.idkas);
     api.get(`/kas/${k.idkas}`).then((r) => {
       const details = r.data.details?.map((d) => ({
-        idakun: d.idakun,
+        idakun : d.idakun,
         catatan: d.catatan || '',
-        amount: d.amount || '',
+        amount : d.amount || '',
       })) || [{ ...EMPTY_DETAIL }];
       setForm({ details });
       setShowForm(true);
@@ -89,10 +97,17 @@ export default function Kas() {
           <h2 className="text-2xl font-bold text-dark-500">Kas</h2>
           <p className="text-sm text-dark-300">Manajemen kas masuk & keluar</p>
         </div>
-        <button onClick={() => { setEditId(null); setForm({ details: [{ ...EMPTY_DETAIL }] }); setShowForm(true); }}
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setEditId(null); setForm({ details: [{ ...EMPTY_DETAIL }] }); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Kas
         </button>
+      </div>
       </div>
 
       <div className="relative max-w-md">
@@ -106,11 +121,11 @@ export default function Kas() {
           <table className="w-full min-w-[600px]">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-primary-50 bg-warm-50/50">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Kode Kas</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-dark-300">Tanggal</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-dark-300">Jumlah</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300">Status</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Kode Kas</th>
+                <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Tanggal</th>
+                <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Jumlah</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300">Status</th>
+                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -170,13 +185,13 @@ export default function Kas() {
                   <div key={idx} className="flex items-end gap-2 p-3 rounded-xl bg-warm-50/50 border border-primary-50">
                     <div className="flex-1">
                       <label className="block text-[10px] font-semibold text-dark-400 mb-1">Akun</label>
-                      <select value={d.idakun} onChange={(e) => updateDetail(idx, 'idakun', e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white" required>
-                        <option value="">Pilih Akun</option>
-                        {akun.map((a) => (
-                          <option key={a.idakun} value={a.idakun}>{a.kodeakun} - {a.namaakun}</option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        value={d.idakun}
+                        onChange={(val) => updateDetail(idx, 'idakun', val)}
+                        options={akun.map((a) => ({ value: a.idakun, label: `${a.kodeakun} - ${a.namaakun}` }))}
+                        placeholder="Pilih Akun..."
+                        required={false}
+                      />
                     </div>
                     <div className="flex-[2]">
                       <label className="block text-[10px] font-semibold text-dark-400 mb-1">Catatan</label>

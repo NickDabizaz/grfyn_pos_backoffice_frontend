@@ -9,14 +9,14 @@ const reportUrl = (type, token, params = {}) => {
 };
 
 export default function Laporan() {
-  const [tab, setTab] = useState('sales-transaksi');
-  const [tglwal, setTglwal] = useState(firstOfMonth());
-  const [tglakhir, setTglakhir] = useState(today());
-  const [idbarang, setIdbarang] = useState('');
+  const [tab, setTab]               = useState('sales-transaksi');
+  const [tglwal, setTglwal]         = useState(firstOfMonth());
+  const [tglakhir, setTglakhir]     = useState(today());
+  const [idbarang, setIdbarang]     = useState('');
   const [idcustomer, setIdcustomer] = useState('');
   const [idsupplier, setIdsupplier] = useState('');
-  const [url, setUrl] = useState('');
-  const token = useAuthStore((s) => s.token);
+  const [url, setUrl]               = useState('');
+  const token                       = useAuthStore((s) => s.token);
 
   const generateUrl = () => {
     const params = { tglwal, tglakhir };
@@ -27,11 +27,11 @@ export default function Laporan() {
   };
 
   const reports = [
-    { key: 'sales-transaksi', label: 'Sales Transaksi' },
-    { key: 'sales-per-customer', label: 'Sales Per Customer' },
-    { key: 'sales-per-barang', label: 'Sales Per Barang' },
-    { key: 'pembelian', label: 'Pembelian' },
-    { key: 'stok', label: 'Laporan Stok' },
+    { key: 'sales-transaksi',     label: 'Sales Transaksi' },
+    { key: 'sales-per-customer',  label: 'Sales Per Customer' },
+    { key: 'sales-per-barang',    label: 'Sales Per Barang' },
+    { key: 'pembelian',           label: 'Pembelian' },
+    { key: 'stok',                label: 'Laporan Stok' },
   ];
 
   return (

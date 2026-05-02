@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 export default function Akun() {
-  const [data, setData] = useState([]);
-  const [search, setSearch] = useState('');
+  const [data, setData]         = useState([]);
+  const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId]     = useState(null);
   const [form, setForm] = useState({ namaakun: '', posisi: 'DEBET' });
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -24,6 +26,12 @@ export default function Akun() {
   }, [search]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -60,10 +68,17 @@ export default function Akun() {
           <h2 className="text-2xl font-bold text-dark-500">Akun</h2>
           <p className="text-sm text-dark-300">Daftar akun / chart of accounts</p>
         </div>
-        <button onClick={() => { setEditId(null); setForm({ namaakun: '', posisi: 'DEBET' }); setShowForm(true); }}
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setEditId(null); setForm({ namaakun: '', posisi: 'DEBET' }); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Akun
         </button>
+      </div>
       </div>
 
       <div className="relative max-w-md">
@@ -77,10 +92,10 @@ export default function Akun() {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-primary-50 bg-warm-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Akun</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Nama Akun</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Posisi</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Kode Akun</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Nama Akun</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Posisi</th>
+                <th className="text-left   px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
               </tr>
             </thead>
@@ -120,11 +135,11 @@ export default function Akun() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Posisi</label>
-                <select value={form.posisi} onChange={(e) => setForm({...form, posisi: e.target.value})}
-                  className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white">
-                  <option value="DEBET">DEBET</option>
-                  <option value="KREDIT">KREDIT</option>
-                </select>
+                <SearchableSelect
+                  value={form.posisi}
+                  onChange={(val) => setForm({...form, posisi: val})}
+                  options={[{ value: 'DEBET', label: 'DEBET' }, { value: 'KREDIT', label: 'KREDIT' }]}
+                />
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50">Batal</button>

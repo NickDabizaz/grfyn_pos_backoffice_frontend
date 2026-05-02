@@ -4,37 +4,72 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Pos() {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [jual, setJual] = useState([]);
   const [showCustomer, setShowCustomer] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showJualList, setShowJualList] = useState(false);
   const [bayar, setBayar] = useState('');
+  const [usePpn, setUsePpn] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [stockData, setStockData] = useState([]);
+  const PAGE_SIZE = 12;
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => { api.get('/customer').then((r) => setCustomers(r.data)); }, []);
 
-  useEffect(() => {
-    if (!search) { setProducts([]); return; }
-    const t = setTimeout(() => {
-      api.get(`/barang?search=${encodeURIComponent(search)}`).then((r) => setProducts(r.data));
-    }, 250);
-    return () => clearTimeout(t);
+  const loadProducts = useCallback(() => {
+    if (search) {
+      api.get(`/barang?search=${encodeURIComponent(search)}`).then((r) => {
+        setAllProducts(r.data);
+        setPage(1);
+      });
+    } else {
+      api.get('/barang').then((r) => {
+        setAllProducts(r.data);
+        setPage(1);
+      });
+    }
   }, [search]);
+
+  useEffect(() => {
+    loadProducts();
+    api.get('/stok/saldostok').then((r) => setStockData(r.data));
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    setProducts(allProducts.slice(start, start + PAGE_SIZE));
+  }, [allProducts, page]);
+
+  const totalPages = Math.ceil(allProducts.length / PAGE_SIZE);
+
+  const getStock = (idbarang) => {
+    const s = stockData.find((s) => s.idbarang === idbarang);
+    return s ? s.stok : 0;
+  };
 
   const loadJual = useCallback(() => {
     api.get('/jual').then((r) => setJual(r.data));
   }, []);
   useEffect(() => { loadJual(); }, [loadJual]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadProducts(), api.get('/customer').then((r) => setCustomers(r.data)), api.get('/stok/saldostok').then((r) => setStockData(r.data)), loadJual()]);
+    setRefreshing(false);
+  };
+
   const grandTotal = items.reduce((sum, item) => {
-    const ppn = (item.harga * item.jml * (user?.ppn || 11)) / 100;
+    const ppn = usePpn ? (item.harga * item.jml * (user?.ppn || 11)) / 100 : 0;
     const diskon = item.diskon ? (item.harga * item.jml * item.diskon) / 100 : 0;
     return sum + (item.harga * item.jml) + ppn - diskon;
   }, 0);
@@ -45,6 +80,7 @@ export default function Pos() {
     try {
       const payload = {
         idcustomer: customer?.idcustomer || 1, idkasir: user?.iduser, grandtotal: grandTotal, bayar: amount, kembali: amount - grandTotal,
+        useppn: usePpn,
         items: items.map((item) => ({ idbarang: item.idbarang, jml: item.jml, harga: item.hargajual_terbaru || item.harga, diskon: item.diskon || 0 })),
       };
       await api.post('/jual', payload);
@@ -67,6 +103,11 @@ export default function Pos() {
           <h2 className="text-2xl font-bold text-dark-500">POS / Kasir</h2>
           <p className="text-sm text-dark-300">Transaksi penjualan</p>
         </div>
+        <button onClick={handleRefresh} disabled={refreshing}
+          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          title="Refresh halaman">
+          <RefreshCw className="w-4 h-4" />
+        </button>
         <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
           className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
           {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
@@ -124,16 +165,35 @@ export default function Pos() {
           </div>
           <div className="flex-1 overflow-y-auto scrollbar-thin">
             <div className="grid grid-cols-4 gap-2">
-              {products.map((p) => (
+              {products.map((p) => {
+                const stok = getStock(p.idbarang);
+                return (
                 <button key={p.idbarang} onClick={() => addItem({ ...p, harga: parseFloat(p.hargajual_terbaru || 0) })}
                   className="text-left p-3 rounded-xl border border-primary-50 bg-warm-50/50 hover:bg-primary-50 hover:border-primary-200 transition-all group">
                   <p className="text-xs font-semibold text-dark-500 truncate">{p.namabarang}</p>
                   <p className="text-[10px] text-dark-300">{p.kodebarang}</p>
                   <p className="text-xs font-bold text-primary-600 mt-1">{formatRupiah(p.hargajual_terbaru)}</p>
                   <p className="text-[9px] text-dark-200">{p.satuankecil}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[9px] font-semibold ${stok <= 0 ? 'text-red-500' : 'text-dark-300'}`}>Stok: {stok}</span>
+                  </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-4 pb-2">
+                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}
+                  className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs text-dark-400 px-2">{page} / {totalPages}</span>
+                <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -159,7 +219,7 @@ export default function Pos() {
 
           <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5">
             {items.map((item) => {
-              const ppn = (item.harga * item.jml * (user?.ppn || 11)) / 100;
+              const ppn = usePpn ? (item.harga * item.jml * (user?.ppn || 11)) / 100 : 0;
               const diskon = item.diskon ? (item.harga * item.jml * item.diskon) / 100 : 0;
               const subtotal = (item.harga * item.jml) + ppn - diskon;
               return (
@@ -186,8 +246,8 @@ export default function Pos() {
               <span className="font-semibold text-dark-500">{formatRupiah(items.reduce((s, i) => s + i.harga * i.jml, 0))}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-dark-300">PPN ({user?.ppn || 11}%)</span>
-              <span className="font-semibold text-dark-500">{formatRupiah(items.reduce((s, i) => s + (i.harga * i.jml * (user?.ppn || 11)) / 100, 0))}</span>
+              <span className="text-dark-300">PPN {usePpn ? `(${user?.ppn || 11}%)` : '(Nonaktif)'}</span>
+              <span className="font-semibold text-dark-500">{formatRupiah(usePpn ? items.reduce((s, i) => s + (i.harga * i.jml * (user?.ppn || 11)) / 100, 0) : 0)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold">
               <span className="text-dark-500">Total</span>
@@ -213,6 +273,13 @@ export default function Pos() {
               <p className="text-3xl font-bold text-primary-600 mt-1">{formatRupiah(grandTotal)}</p>
             </div>
             <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-warm-50">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={usePpn} onChange={(e) => setUsePpn(e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary-500" />
+                  <span className="text-xs font-semibold text-dark-400">Pakai PPN ({user?.ppn || 11}%)</span>
+                </label>
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Jumlah Bayar</label>
                 <input type="number" value={bayar} onChange={(e) => setBayar(e.target.value)}

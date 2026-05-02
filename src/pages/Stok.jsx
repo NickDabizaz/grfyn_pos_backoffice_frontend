@@ -3,7 +3,8 @@ import api from '../api/axios';
 import { formatRupiah, formatDate } from '../lib/utils';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
-import { Search, Plus, ClipboardList, RotateCcw, Package, ArrowDown, ArrowUp } from 'lucide-react';
+import { Search, Plus, ClipboardList, RotateCcw, Package, ArrowDown, ArrowUp, X, RefreshCw } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 export default function Stok() {
   const [tab, setTab] = useState('kartu');
@@ -30,12 +31,27 @@ export default function Stok() {
   const [clsJenis, setClsJenis] = useState('harian');
   const [clsTgl, setClsTgl] = useState(new Date().toISOString().slice(0, 10));
 
-  useEffect(() => {
+  // Saldo Awal
+  const [showSaldoAwal, setShowSaldoAwal] = useState(false);
+  const [saCart, setSaCart] = useState([]);
+  const [saSearch, setSaSearch] = useState('');
+  const [saBarang, setSaBarang] = useState([]);
+  const [saKeterangan, setSaKeterangan] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadAll = () => {
     loadKartu();
     api.get('/stok/penyesuaian').then((r) => setPenyesuaian(r.data));
     api.get('/stok/saldostok').then((r) => setSaldo(r.data));
     api.get('/stok/closing').then((r) => setClosing(r.data));
-  }, []);
+  };
+  useEffect(() => { loadAll(); }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await new Promise((r) => { loadAll(); setTimeout(r, 300); });
+    setRefreshing(false);
+  };
 
   const loadKartu = () => {
     const params = {};
@@ -82,6 +98,41 @@ export default function Stok() {
     }
   };
 
+  // Saldo Awal
+  const searchSaBarang = (term) => {
+    const q = term || saSearch;
+    if (!q) return;
+    api.get(`/barang?search=${encodeURIComponent(q)}`).then((r) => setSaBarang(r.data));
+  };
+
+  const addSaItem = (b) => {
+    const exists = saCart.find((c) => c.idbarang === b.idbarang);
+    if (exists) return toast.error('Barang sudah ada di daftar');
+    setSaCart([...saCart, { ...b, jml: 0 }]);
+    setSaSearch('');
+    setSaBarang([]);
+  };
+
+  const handleSaldoAwal = async () => {
+    const validItems = saCart.filter((a) => a.jml > 0);
+    if (!validItems.length) return toast.error('Minimal 1 item dengan jumlah > 0');
+    try {
+      const payload = {
+        idkasir: user?.iduser,
+        keterangan: saKeterangan || 'SALDO AWAL STOK',
+        items: validItems.map((a) => ({ idbarang: a.idbarang, jml: parseInt(a.jml) || 0 })),
+      };
+      await api.post('/stok/saldoawal', payload);
+      toast.success('Saldo awal stok berhasil disimpan');
+      setShowSaldoAwal(false);
+      setSaCart([]);
+      setSaKeterangan('');
+      loadAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal');
+    }
+  };
+
   const handleClosing = async () => {
     try {
       await api.post('/stok/closing', { jenis: clsJenis, tglclosing: clsTgl });
@@ -101,9 +152,16 @@ export default function Stok() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-dark-500">Stok</h2>
-        <p className="text-sm text-dark-300">Manajemen stok & inventori</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-dark-500">Stok</h2>
+          <p className="text-sm text-dark-300">Manajemen stok & inventori</p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing}
+          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          title="Refresh halaman">
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="flex bg-white rounded-2xl p-1 border border-primary-50 w-fit">
@@ -126,12 +184,14 @@ export default function Stok() {
               <input value={ksSearch} onChange={(e) => setKsSearch(e.target.value.toUpperCase())}
                 placeholder="ID Barang..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
             </div>
-            <select value={ksJenis} onChange={(e) => setKsJenis(e.target.value)}
-              className="px-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20">
-              <option value="">Semua Jenis</option>
-              <option value="M">Masuk</option>
-              <option value="K">Keluar</option>
-            </select>
+            <div className="w-48">
+              <SearchableSelect
+                value={ksJenis}
+                onChange={setKsJenis}
+                options={[{ value: '', label: 'Semua Jenis' }, { value: 'M', label: 'Masuk' }, { value: 'K', label: 'Keluar' }]}
+                placeholder="Semua Jenis"
+              />
+            </div>
             <button onClick={loadKartu} className="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">
               Filter
             </button>
@@ -175,7 +235,12 @@ export default function Stok() {
 
       {/* Saldo Stok */}
       {tab === 'saldo' && (
-        <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
+        <div className="space-y-4">
+          <button onClick={() => setShowSaldoAwal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all">
+            <Plus className="w-4 h-4" /> Tambah Saldo Awal
+          </button>
+          <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-primary-50 bg-warm-50/50">
@@ -206,6 +271,7 @@ export default function Stok() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -295,11 +361,12 @@ export default function Stok() {
             <div className="flex items-end gap-4">
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Jenis</label>
-                <select value={clsJenis} onChange={(e) => setClsJenis(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-primary-100 text-sm">
-                  <option value="harian">Harian</option>
-                  <option value="bulanan">Bulanan</option>
-                </select>
+                <SearchableSelect
+                  value={clsJenis}
+                  onChange={setClsJenis}
+                  options={[{ value: 'harian', label: 'Harian' }, { value: 'bulanan', label: 'Bulanan' }]}
+                  className="w-40"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Tanggal Closing</label>
@@ -334,6 +401,58 @@ export default function Stok() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Saldo Awal Modal */}
+      {showSaldoAwal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{animation: 'fadeIn 0.2s ease'}}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto scrollbar-thin shadow-2xl animate-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-dark-500">Tambah Saldo Awal Stok</h3>
+              <button onClick={() => { setShowSaldoAwal(false); setSaCart([]); setSaKeterangan(''); }} className="text-dark-300 hover:text-dark-500"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-dark-400 mb-1">Keterangan</label>
+              <input value={saKeterangan} onChange={(e) => setSaKeterangan(e.target.value.toUpperCase())}
+                placeholder="Contoh: SALDO AWAL TAHUN 2026" className="input-upper w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm" />
+            </div>
+            <div className="flex gap-2 mb-4">
+              <input value={saSearch} onChange={(e) => { const v = e.target.value.toUpperCase(); setSaSearch(v); searchSaBarang(v); }}
+                placeholder="Cari barang..." className="input-upper flex-1 px-3 py-2.5 rounded-xl border border-primary-100 text-sm" />
+              <button onClick={() => searchSaBarang(saSearch)} className="px-4 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold">Cari</button>
+            </div>
+            {saBarang.map((b) => (
+              <button key={b.idbarang} onClick={() => addSaItem(b)}
+                className="w-full text-left p-2 mb-1 rounded-lg bg-warm-50 hover:bg-primary-50 text-sm text-dark-500">
+                {b.namabarang} ({b.kodebarang})
+              </button>
+            ))}
+            <div className="space-y-2 mt-4">
+              {saCart.map((a, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-warm-50">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-dark-500">{a.namabarang}</p>
+                    <p className="text-xs text-dark-300">{a.kodebarang} | {a.satuankecil || '-'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-dark-400">Jml:</span>
+                    <input type="number" value={a.jml} onChange={(e) => {
+                      const newCart = [...saCart];
+                      newCart[i].jml = parseInt(e.target.value) || 0;
+                      setSaCart(newCart);
+                    }} className="w-24 px-2 py-1.5 rounded-lg border border-primary-100 text-sm text-center" />
+                  </div>
+                  <button onClick={() => setSaCart(saCart.filter((_, j) => j !== i))}
+                    className="text-dark-300 hover:text-red-500 text-xs">Hapus</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={handleSaldoAwal} disabled={saCart.length === 0}
+              className="w-full mt-4 py-3 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-bold text-sm disabled:opacity-50 transition-all">
+              Simpan Saldo Awal
+            </button>
           </div>
         </div>
       )}

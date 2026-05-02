@@ -1,31 +1,47 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
-import { TrendingUp, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight, Star, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight, Star, ArrowDownRight, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [chart, setChart] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const loadDashboard = () => {
     api.get('/dashboard/summary').then((r) => setData(r.data)).catch(() => {});
     api.get('/dashboard/chart?days=7').then((r) => setChart(r.data)).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { loadDashboard(); }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await new Promise((r) => { loadDashboard(); setTimeout(r, 300); });
+    setRefreshing(false);
+  };
 
   const cards = [
-    { label: 'Transaksi Hari Ini', value: data?.total_transaksi || 0, icon: ShoppingCart, color: 'bg-primary-500' },
-    { label: 'Total Penjualan', value: formatRupiah(data?.total_sales), icon: DollarSign, color: 'bg-accent-500' },
-    { label: 'Laba Kotor', value: formatRupiah(data?.laba_kotor), icon: TrendingUp, color: 'bg-emerald-500' },
-    { label: 'Stok Menipis', value: data?.low_stock?.length || 0, icon: AlertTriangle, color: 'bg-amber-500' },
+    { label: 'Transaksi Hari Ini',  value: data?.total_transaksi || 0,      icon: ShoppingCart,   color: 'bg-primary-500' },
+    { label: 'Total Penjualan',     value: formatRupiah(data?.total_sales), icon: DollarSign,     color: 'bg-accent-500' },
+    { label: 'Laba Kotor',          value: formatRupiah(data?.laba_kotor),  icon: TrendingUp,     color: 'bg-emerald-500' },
+    { label: 'Stok Menipis',        value: data?.low_stock?.length || 0,    icon: AlertTriangle,  color: 'bg-amber-500' },
   ];
 
   const maxChartVal = Math.max(...chart.map((c) => parseFloat(c.total || 0)), 1);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-dark-500">Dashboard</h2>
-        <p className="text-sm text-dark-300 mt-0.5">Ringkasan bisnis hari ini</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-dark-500">Dashboard</h2>
+          <p className="text-sm text-dark-300 mt-0.5">Ringkasan bisnis hari ini</p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing}
+          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          title="Refresh halaman">
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
