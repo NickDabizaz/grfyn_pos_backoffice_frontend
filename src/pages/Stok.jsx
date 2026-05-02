@@ -192,7 +192,7 @@ export default function Stok() {
                 <tr key={s.idbarang} className={`border-b border-primary-50/50 text-sm ${(s.stok || 0) <= (s.stokmin || 0) ? 'bg-red-50/30' : 'hover:bg-warm-50/30'}`}>
                   <td className="px-4 py-3 text-xs font-mono text-dark-300">{s.kodebarang}</td>
                   <td className="px-4 py-3 font-medium text-dark-500">{s.namabarang}</td>
-                  <td className="px-4 py-3 text-dark-400">{s.satuan || '-'}</td>
+                  <td className="px-4 py-3 text-dark-400">{s.satuankecil || '-'}</td>
                   <td className="px-4 py-3 text-center text-dark-400">{s.stokmin || 0}</td>
                   <td className="px-4 py-3 text-center font-bold">{s.stok || 0}</td>
                   <td className="px-4 py-3 text-center">

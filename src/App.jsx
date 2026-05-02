@@ -8,9 +8,13 @@ import Barang from './pages/Barang';
 import Customer from './pages/Customer';
 import Supplier from './pages/Supplier';
 import Pembelian from './pages/Pembelian';
+import Penjualan from './pages/Penjualan';
 import Stok from './pages/Stok';
 import Laporan from './pages/Laporan';
 import Setting from './pages/Setting';
+import Resep from './pages/Resep';
+import Kas from './pages/Kas';
+import Akun from './pages/Akun';
 import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }) {
@@ -33,9 +37,13 @@ export default function App() {
         <Route path="/master/supplier" element={<ProtectedRoute><Supplier /></ProtectedRoute>} />
         <Route path="/master/customer" element={<ProtectedRoute><Customer /></ProtectedRoute>} />
         <Route path="/pembelian" element={<ProtectedRoute><Pembelian /></ProtectedRoute>} />
+        <Route path="/penjualan" element={<ProtectedRoute><Penjualan /></ProtectedRoute>} />
         <Route path="/stok" element={<ProtectedRoute><Stok /></ProtectedRoute>} />
         <Route path="/laporan" element={<ProtectedRoute><Laporan /></ProtectedRoute>} />
         <Route path="/setting" element={<ProtectedRoute><Setting /></ProtectedRoute>} />
+        <Route path="/resep" element={<ProtectedRoute><Resep /></ProtectedRoute>} />
+        <Route path="/kas" element={<ProtectedRoute><Kas /></ProtectedRoute>} />
+        <Route path="/master/akun" element={<ProtectedRoute><Akun /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

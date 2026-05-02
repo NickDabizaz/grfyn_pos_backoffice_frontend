@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
-  LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse, FileBarChart, Settings, LogOut, Store, Users, Truck, ChevronDown
+  LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse, FileBarChart, Settings, LogOut, Store, Users, Truck, ChevronDown, ReceiptText, Beaker, DollarSign, Coins
 } from 'lucide-react';
 
 const menu = [
@@ -13,10 +13,14 @@ const menu = [
       { to: '/master/barang', label: 'Barang' },
       { to: '/master/supplier', label: 'Supplier' },
       { to: '/master/customer', label: 'Customer' },
+      { to: '/master/akun', label: 'Akun' },
     ]
   },
   { to: '/pembelian', label: 'Pembelian', icon: ShoppingBag },
+  { to: '/penjualan', label: 'Penjualan', icon: ReceiptText },
   { to: '/stok', label: 'Stok', icon: Warehouse },
+  { to: '/resep', label: 'Resep', icon: Beaker },
+  { to: '/kas', label: 'Kas', icon: Coins },
   { to: '/laporan', label: 'Laporan', icon: FileBarChart },
   { to: '/setting', label: 'Setting', icon: Settings },
 ];

@@ -4,9 +4,37 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload } from 'lucide-react';
 
-export default function Pos() {
+const downloadFile = (url, filename) => {
+  api.get(url, { responseType: 'blob' }).then((r) => {
+    const blob = new Blob([r.data], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  });
+};
+
+const handleImport = (url, onSuccess) => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const { data } = await api.post(url, formData);
+      toast.success(`Import selesai: ${data.success} berhasil, ${data.errors} gagal`);
+      onSuccess();
+    } catch (err) { toast.error(err.response?.data?.message || 'Import gagal'); }
+  };
+  input.click();
+};
+
+export default function Penjualan() {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -64,13 +92,27 @@ export default function Pos() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-dark-500">POS / Kasir</h2>
-          <p className="text-sm text-dark-300">Transaksi penjualan</p>
+          <h2 className="text-2xl font-bold text-dark-500">Penjualan</h2>
+          <p className="text-sm text-dark-300">POS Back Office</p>
         </div>
-        <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
-          className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-          {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
+            className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
+          </button>
+          <button onClick={() => downloadFile('/impor/jual/export', 'jual-export.csv')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            <Download className="w-3.5 h-3.5" /> Export
+          </button>
+          <button onClick={() => downloadFile('/impor/jual/template', 'jual-template.csv')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            <FileText className="w-3.5 h-3.5" /> Template
+          </button>
+          <button onClick={() => handleImport('/impor/jual/import', loadJual)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            <Upload className="w-3.5 h-3.5" /> Import
+          </button>
+        </div>
       </div>
 
       {showJualList && (
