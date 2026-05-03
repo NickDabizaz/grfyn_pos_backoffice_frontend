@@ -1,0 +1,68 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#FAF0E8',
+          100: '#F5E0D0',
+          200: '#EBC4A8',
+          300: '#E0A380',
+          400: '#D48258',
+          500: '#C4683D',
+          600: '#A35030',
+          700: '#843E24',
+          800: '#682E1A',
+          900: '#4E2112',
+        },
+        accent: {
+          50: '#F0F6F4',
+          100: '#DFEFEA',
+          200: '#BFDFD6',
+          300: '#9DCFC0',
+          400: '#7ABFAA',
+          500: '#5EAB96',
+          600: '#4B8C7A',
+          700: '#3A6E5F',
+          800: '#2A5246',
+          900: '#1C382F',
+        },
+        warm: {
+          50: '#FDF9F0',
+          100: '#FAF2E0',
+          200: '#F5E5C0',
+          300: '#EED59A',
+          400: '#E6C575',
+          500: '#DBB250',
+          600: '#C09940',
+          700: '#A07D30',
+          800: '#806224',
+          900: '#604818',
+        },
+        dark: {
+          50: '#F5F2EE',
+          100: '#E8E2DA',
+          200: '#CFC5B8',
+          300: '#B5A796',
+          400: '#998A76',
+          500: '#7D6D59',
+          600: '#635446',
+          700: '#4B3E34',
+          800: '#352B23',
+          900: '#211A15',
+        },
+        surface: '#FDF8F2',
+        card: '#FFFDF9',
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+      },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+      },
+    },
+  },
+  plugins: [],
+};
