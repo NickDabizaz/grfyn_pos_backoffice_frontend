@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
-import { formatRupiah } from '../lib/utils';
+import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -37,7 +37,6 @@ const handleImport = (url, onSuccess) => {
 export default function Penjualan() {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [jual, setJual] = useState([]);
   const [showCustomer, setShowCustomer] = useState(false);
@@ -46,59 +45,27 @@ export default function Penjualan() {
   const [bayar, setBayar] = useState('');
   const [usePpn, setUsePpn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stockData, setStockData] = useState([]);
-  const [page, setPage] = useState(1);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelTargetId, setCancelTargetId] = useState(null);
-  const PAGE_SIZE = 12;
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
-  useEffect(() => {
-    if (user) setUsePpn(user.ppn > 0);
-  }, [user]);
-
   useEffect(() => { api.get('/customer').then((r) => setCustomers(r.data)); }, []);
 
-  const loadProducts = useCallback(() => {
-    if (search) {
-      api.get(`/barang?search=${encodeURIComponent(search)}`).then((r) => {
-        setAllProducts(r.data);
-        setPage(1);
-      });
-    } else {
-      api.get('/barang', { params: { jenis: 'BAHAN JADI' } }).then((r) => {
-        setAllProducts(r.data);
-        setPage(1);
-      });
-    }
+  useEffect(() => {
+    if (!search) { setProducts([]); return; }
+    const t = setTimeout(() => {
+      api.get(`/barang?search=${encodeURIComponent(search)}`).then((r) => setProducts(r.data));
+    }, 250);
+    return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => {
-    loadProducts();
-    api.get('/stok/saldostok').then((r) => setStockData(r.data));
-  }, [loadProducts]);
-
-  useEffect(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    setProducts(allProducts.slice(start, start + PAGE_SIZE));
-  }, [allProducts, page]);
-
-  const totalPages = Math.ceil(allProducts.length / PAGE_SIZE);
-
-  const getStock = (idbarang) => {
-    const s = stockData.find((s) => s.idbarang === idbarang);
-    return s ? s.stok : 0;
-  };
-
   const loadJual = useCallback(() => {
-    api.get('/jual?jenis=JUAL').then((r) => setJual(r.data));
+    api.get('/jual').then((r) => setJual(r.data));
   }, []);
   useEffect(() => { loadJual(); }, [loadJual]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadProducts(), api.get('/customer').then((r) => setCustomers(r.data)), api.get('/stok/saldostok').then((r) => setStockData(r.data)), loadJual()]);
+    await Promise.all([api.get('/customer').then((r) => setCustomers(r.data)), loadJual()]);
     setRefreshing(false);
   };
 
@@ -114,35 +81,20 @@ export default function Penjualan() {
     try {
       const payload = {
         idcustomer: customer?.idcustomer || 1, idkasir: user?.iduser, grandtotal: grandTotal, bayar: amount, kembali: amount - grandTotal,
-        useppn: usePpn, jenis: 'JUAL',
+        useppn: usePpn,
         items: items.map((item) => ({ idbarang: item.idbarang, jml: item.jml, harga: item.hargajual_terbaru || item.harga, diskon: item.diskon || 0 })),
       };
-      const { data } = await api.post('/jual', payload);
+      await api.post('/jual', payload);
       toast.success('Transaksi berhasil!');
       setShowPayment(false); setBayar(''); clearCart(); loadJual();
-      if (data.idjual) {
-        window.open(`/api/laporan/faktur/${data.idjual}?token=${localStorage.getItem('grfyn_token')}`, '_blank');
-      }
+      window.open(`/api/laporan/sales-transaksi?format=html&tglwal=${today()}&tglakhir=${today()}&token=${localStorage.getItem('grfyn_token')}`, '_blank');
     } catch (err) { toast.error(err.response?.data?.message || 'Transaksi gagal'); }
   };
 
-  const openCancelModal = (id) => {
-    setCancelTargetId(id);
-    setShowCancelModal(true);
-  };
-
-  const handleCancel = async () => {
-    if (!cancelTargetId) return;
-    try {
-      await api.put(`/jual/${cancelTargetId}/cancel`);
-      toast.success('Transaksi dibatalkan');
-      loadJual();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Gagal');
-    } finally {
-      setShowCancelModal(false);
-      setCancelTargetId(null);
-    }
+  const handleCancel = async (id) => {
+    if (!confirm('Batalkan transaksi ini? Stok akan dikembalikan.')) return;
+    try { await api.put(`/jual/${id}/cancel`); toast.success('Transaksi dibatalkan'); loadJual(); }
+    catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };
 
   return (
@@ -187,7 +139,6 @@ export default function Penjualan() {
                   <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300">Tanggal</th>
                   <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300">Customer</th>
                   <th className="text-right px-3 py-2 text-[10px] font-semibold text-dark-300">Total</th>
-                  <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300">Jenis</th>
                   <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300">Status</th>
                   <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300 w-12">Aksi</th>
                 </tr>
@@ -200,27 +151,14 @@ export default function Penjualan() {
                     <td className="px-3 py-2 text-dark-500">{j.namacustomer || 'CASH'}</td>
                     <td className="px-3 py-2 text-right font-semibold text-dark-500">{formatRupiah(j.grandtotal)}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${j.jenis === 'POS' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                        {j.jenis || 'POS'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${j.status === 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                         {j.status === 0 ? 'BATAL' : 'AKTIF'}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">
                       {j.status !== 0 && (
-                        <button onClick={() => openCancelModal(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleCancel(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500"><Ban className="w-3.5 h-3.5" /></button>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => window.open(`/api/laporan/faktur/${j.idjual}?token=${localStorage.getItem('grfyn_token')}`, '_blank')} className="p-0.5 rounded hover:bg-primary-50 text-dark-300 hover:text-primary-600" title="Cetak Faktur"><FileText className="w-3.5 h-3.5" /></button>
-                        {j.status !== 0 && (
-                          <button onClick={() => openCancelModal(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500" title="Batalkan"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -242,36 +180,16 @@ export default function Penjualan() {
           </div>
           <div className="flex-1 overflow-y-auto scrollbar-thin">
             <div className="grid grid-cols-4 gap-2">
-              {products.map((p) => {
-                const stok = getStock(p.idbarang);
-                return (
+              {products.map((p) => (
                 <button key={p.idbarang} onClick={() => addItem({ ...p, harga: parseFloat(p.hargajual_terbaru || 0) })}
                   className="text-left p-3 rounded-xl border border-primary-50 bg-warm-50/50 hover:bg-primary-50 hover:border-primary-200 transition-all group">
                   <p className="text-xs font-semibold text-dark-500 truncate">{p.namabarang}</p>
                   <p className="text-[10px] text-dark-300">{p.kodebarang}</p>
                   <p className="text-xs font-bold text-primary-600 mt-1">{formatRupiah(p.hargajual_terbaru)}</p>
                   <p className="text-[9px] text-dark-200">{p.satuankecil}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`text-[9px] font-semibold ${stok <= 0 ? 'text-red-500' : 'text-dark-300'}`}>Stok: {stok}</span>
-                    <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${p.jenis === 'BAHAN JADI' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{p.jenis}</span>
-                  </div>
                 </button>
-                );
-              })}
+              ))}
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-4 pb-2">
-                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}
-                  className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs text-dark-400 px-2">{page} / {totalPages}</span>
-                <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
-                  className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -373,30 +291,6 @@ export default function Penjualan() {
               <button onClick={handlePay} disabled={!bayar || parseFloat(bayar) < grandTotal}
                 className="w-full py-3 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-bold text-sm transition-all disabled:opacity-50">
                 <Printer className="w-4 h-4 inline mr-2" /> Bayar & Cetak
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{animation: 'fadeIn 0.2s ease'}}>
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
-                <Ban className="w-6 h-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold text-dark-500">Batalkan Transaksi?</h3>
-              <p className="text-sm text-dark-300 mt-1">Stok akan dikembalikan ke inventory.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setShowCancelModal(false); setCancelTargetId(null); }}
-                className="flex-1 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-                Batal
-              </button>
-              <button onClick={handleCancel}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all">
-                Ya, Batalkan
               </button>
             </div>
           </div>

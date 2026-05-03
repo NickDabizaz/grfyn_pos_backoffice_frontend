@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
-import { formatRupiah } from '../lib/utils';
+import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, RefreshCw, ChevronLeft, ChevronRight, Receipt } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Pos() {
   const [search, setSearch] = useState('');
@@ -20,15 +20,9 @@ export default function Pos() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [stockData, setStockData] = useState([]);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelTargetId, setCancelTargetId] = useState(null);
   const PAGE_SIZE = 12;
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
-
-  useEffect(() => {
-    if (user) setUsePpn(user.ppn > 0);
-  }, [user]);
 
   useEffect(() => { api.get('/customer').then((r) => setCustomers(r.data)); }, []);
 
@@ -64,7 +58,7 @@ export default function Pos() {
   };
 
   const loadJual = useCallback(() => {
-    api.get('/jual?jenis=POS').then((r) => setJual(r.data));
+    api.get('/jual').then((r) => setJual(r.data));
   }, []);
   useEffect(() => { loadJual(); }, [loadJual]);
 
@@ -86,35 +80,20 @@ export default function Pos() {
     try {
       const payload = {
         idcustomer: customer?.idcustomer || 1, idkasir: user?.iduser, grandtotal: grandTotal, bayar: amount, kembali: amount - grandTotal,
-        useppn: usePpn, jenis: 'POS',
+        useppn: usePpn,
         items: items.map((item) => ({ idbarang: item.idbarang, jml: item.jml, harga: item.hargajual_terbaru || item.harga, diskon: item.diskon || 0 })),
       };
-      const { data } = await api.post('/jual', payload);
+      await api.post('/jual', payload);
       toast.success('Transaksi berhasil!');
       setShowPayment(false); setBayar(''); clearCart(); loadJual();
-      if (data.idjual) {
-        window.open(`/api/laporan/struk/${data.idjual}?token=${localStorage.getItem('grfyn_token')}`, '_blank');
-      }
+      window.open(`/api/laporan/sales-transaksi?format=html&tglwal=${today()}&tglakhir=${today()}&token=${localStorage.getItem('grfyn_token')}`, '_blank');
     } catch (err) { toast.error(err.response?.data?.message || 'Transaksi gagal'); }
   };
 
-  const openCancelModal = (id) => {
-    setCancelTargetId(id);
-    setShowCancelModal(true);
-  };
-
-  const handleCancel = async () => {
-    if (!cancelTargetId) return;
-    try {
-      await api.put(`/jual/${cancelTargetId}/cancel`);
-      toast.success('Transaksi dibatalkan');
-      loadJual();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Gagal');
-    } finally {
-      setShowCancelModal(false);
-      setCancelTargetId(null);
-    }
+  const handleCancel = async (id) => {
+    if (!confirm('Batalkan transaksi ini? Stok akan dikembalikan.')) return;
+    try { await api.put(`/jual/${id}/cancel`); toast.success('Transaksi dibatalkan'); loadJual(); }
+    catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };
 
   return (
@@ -145,7 +124,6 @@ export default function Pos() {
                   <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300">Tanggal</th>
                   <th className="text-left px-3 py-2 text-[10px] font-semibold text-dark-300">Customer</th>
                   <th className="text-right px-3 py-2 text-[10px] font-semibold text-dark-300">Total</th>
-                  <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300">Jenis</th>
                   <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300">Status</th>
                   <th className="text-center px-3 py-2 text-[10px] font-semibold text-dark-300 w-12">Aksi</th>
                 </tr>
@@ -158,27 +136,14 @@ export default function Pos() {
                     <td className="px-3 py-2 text-dark-500">{j.namacustomer || 'CASH'}</td>
                     <td className="px-3 py-2 text-right font-semibold text-dark-500">{formatRupiah(j.grandtotal)}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${j.jenis === 'POS' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                        {j.jenis || 'POS'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${j.status === 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                         {j.status === 0 ? 'BATAL' : 'AKTIF'}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">
                       {j.status !== 0 && (
-                        <button onClick={() => openCancelModal(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleCancel(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500"><Ban className="w-3.5 h-3.5" /></button>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => window.open(`/api/laporan/struk/${j.idjual}?token=${localStorage.getItem('grfyn_token')}`, '_blank')} className="p-0.5 rounded hover:bg-primary-50 text-dark-300 hover:text-primary-600" title="Cetak Struk"><Receipt className="w-3.5 h-3.5" /></button>
-                        {j.status !== 0 && (
-                          <button onClick={() => openCancelModal(j.idjual)} className="p-0.5 rounded hover:bg-red-50 text-dark-300 hover:text-red-500" title="Batalkan"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -330,30 +295,6 @@ export default function Pos() {
               <button onClick={handlePay} disabled={!bayar || parseFloat(bayar) < grandTotal}
                 className="w-full py-3 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-bold text-sm transition-all disabled:opacity-50">
                 <Printer className="w-4 h-4 inline mr-2" /> Bayar & Cetak
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{animation: 'fadeIn 0.2s ease'}}>
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
-                <Ban className="w-6 h-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold text-dark-500">Batalkan Transaksi?</h3>
-              <p className="text-sm text-dark-300 mt-1">Stok akan dikembalikan ke inventory.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setShowCancelModal(false); setCancelTargetId(null); }}
-                className="flex-1 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-                Batal
-              </button>
-              <button onClick={handleCancel}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all">
-                Ya, Batalkan
               </button>
             </div>
           </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
-import { useConfirm } from '../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -9,7 +8,6 @@ import SearchableSelect from '../components/ui/SearchableSelect';
 const EMPTY_DETAIL = { idakun: '', catatan: '', amount: '' };
 
 export default function Kas() {
-  const confirm = useConfirm();
   const [kas, setKas]                         = useState([]);
   const [search, setSearch]                   = useState('');
   const [showForm, setShowForm]               = useState(false);
@@ -78,7 +76,7 @@ export default function Kas() {
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ message: 'Hapus kas ini?' }))) return;
+    if (!confirm('Hapus kas ini?')) return;
     try { await api.delete(`/kas/${id}`); toast.success('Kas dihapus'); load(); }
     catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };

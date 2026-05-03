@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { useConfirm } from '../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 
@@ -33,7 +32,6 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Customer() {
-  const confirm = useConfirm();
   const [data, setData]         = useState([]);
   const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -85,7 +83,7 @@ export default function Customer() {
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ message: 'Hapus customer ini?' }))) return;
+    if (!confirm('Hapus customer ini?')) return;
     try { await api.delete(`/customer/${id}`); toast.success('Customer dihapus'); load(); }
     catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };

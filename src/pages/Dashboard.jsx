@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
-import { TrendingUp, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight, Star, ArrowDownRight, RefreshCw, X } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight, Star, ArrowDownRight, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [chart, setChart] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [showLowStockModal, setShowLowStockModal] = useState(false);
-  const [lowStockList, setLowStockList] = useState([]);
-  const [loadingLowStock, setLoadingLowStock] = useState(false);
 
   const loadDashboard = () => {
     api.get('/dashboard/summary').then((r) => setData(r.data)).catch(() => {});
@@ -24,24 +21,11 @@ export default function Dashboard() {
     setRefreshing(false);
   };
 
-  const openLowStockModal = async () => {
-    setShowLowStockModal(true);
-    setLoadingLowStock(true);
-    try {
-      const { data: rows } = await api.get('/dashboard/low-stock');
-      setLowStockList(rows || []);
-    } catch {
-      setLowStockList([]);
-    } finally {
-      setLoadingLowStock(false);
-    }
-  };
-
   const cards = [
     { label: 'Transaksi Hari Ini',  value: data?.total_transaksi || 0,      icon: ShoppingCart,   color: 'bg-primary-500' },
     { label: 'Total Penjualan',     value: formatRupiah(data?.total_sales), icon: DollarSign,     color: 'bg-accent-500' },
     { label: 'Laba Kotor',          value: formatRupiah(data?.laba_kotor),  icon: TrendingUp,     color: 'bg-emerald-500' },
-    { label: 'Stok Menipis',        value: data?.low_stock?.length || 0,    icon: AlertTriangle,  color: 'bg-amber-500', onClick: openLowStockModal },
+    { label: 'Stok Menipis',        value: data?.low_stock?.length || 0,    icon: AlertTriangle,  color: 'bg-amber-500' },
   ];
 
   const maxChartVal = Math.max(...chart.map((c) => parseFloat(c.total || 0)), 1);
@@ -62,11 +46,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-4 gap-4">
         {cards.map((card, i) => (
-          <div
-            key={i}
-            onClick={card.onClick}
-            className={`bg-white rounded-2xl p-5 border border-primary-50 card-hover animate-in stagger-${i + 1} ${card.onClick ? 'cursor-pointer' : ''}`}
-          >
+          <div key={i} className={`bg-white rounded-2xl p-5 border border-primary-50 card-hover animate-in stagger-${i + 1}`}>
             <div className="flex items-start justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl ${card.color} flex items-center justify-center`}>
                 <card.icon className="w-5 h-5 text-white" />
@@ -126,63 +106,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {showLowStockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowLowStockModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-primary-50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-                  <AlertTriangle className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-dark-500">Daftar Stok Menipis</h3>
-                  <p className="text-[11px] text-dark-300">Barang dengan stok di bawah atau sama dengan batas minimum</p>
-                </div>
-              </div>
-              <button onClick={() => setShowLowStockModal(false)} className="p-1.5 rounded-lg hover:bg-warm-50 text-dark-300 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-0 overflow-auto flex-1">
-              {loadingLowStock ? (
-                <div className="p-8 text-center text-dark-300 text-sm">Memuat data...</div>
-              ) : lowStockList.length === 0 ? (
-                <div className="p-8 text-center text-emerald-500 text-sm font-medium">Semua stok aman</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-warm-50 sticky top-0">
-                    <tr>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-dark-300">Kode</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-dark-300">Nama Barang</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-dark-300">Satuan</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-dark-300">Stok Min</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-dark-300">Stok Sekarang</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-primary-50">
-                    {lowStockList.map((s) => (
-                      <tr key={s.idbarang} className="hover:bg-warm-50/50 transition-colors">
-                        <td className="px-5 py-3 text-dark-400">{s.kodebarang}</td>
-                        <td className="px-5 py-3 text-dark-500 font-medium">{s.namabarang}</td>
-                        <td className="px-5 py-3 text-dark-400">{s.satuankecil || '-'}</td>
-                        <td className="px-5 py-3 text-right text-dark-400">{s.stokmin}</td>
-                        <td className={`px-5 py-3 text-right font-bold ${parseFloat(s.stok || 0) < 0 ? 'text-red-500' : 'text-amber-600'}`}>{s.stok || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-primary-50 flex justify-between items-center">
-              <span className="text-xs text-dark-300">Total: <span className="font-bold text-dark-500">{lowStockList.length}</span> barang</span>
-              <button onClick={() => setShowLowStockModal(false)} className="px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-all">Tutup</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

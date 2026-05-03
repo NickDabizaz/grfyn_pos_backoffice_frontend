@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { useConfirm } from '../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
 
 export default function Akun() {
-  const confirm = useConfirm();
   const [data, setData]         = useState([]);
   const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +56,7 @@ export default function Akun() {
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ message: 'Hapus akun ini?' }))) return;
+    if (!confirm('Hapus akun ini?')) return;
     try { await api.delete(`/akun/${id}`); toast.success('Akun dihapus'); load(); }
     catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };

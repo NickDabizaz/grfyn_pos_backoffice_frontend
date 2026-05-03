@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
-import { useConfirm } from '../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, AlertTriangle, ChevronDown, ChevronUp, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -37,7 +36,6 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Barang() {
-  const confirm = useConfirm();
   const [barang, setBarang]           = useState([]);
   const [search, setSearch]           = useState('');
   const [showForm, setShowForm]       = useState(false);
@@ -93,7 +91,7 @@ export default function Barang() {
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ message: 'Hapus barang ini?' }))) return;
+    if (!confirm('Hapus barang ini?')) return;
     try { await api.delete(`/barang/${id}`); toast.success('Barang dihapus'); load(); }
     catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
   };
@@ -164,7 +162,6 @@ export default function Barang() {
                 <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Beli</th>
                 <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Jual</th>
                 <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300">Stok Min</th>
-                <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300">Stok</th>
                 <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
               </tr>
             </thead>
@@ -189,7 +186,6 @@ export default function Barang() {
                     {formatRupiah(b.hargajual_terbaru)}
                   </td>
                   <td className="px-3 py-3 text-center text-dark-400">{b.stokmin}</td>
-                  <td className={`px-3 py-3 text-center font-bold ${(b.stok || 0) <= (b.stokmin || 0) ? 'text-red-500' : 'text-dark-500'}`}>{b.stok || 0}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => loadHistory(b.idbarang)} className="p-1.5 rounded-lg hover:bg-accent-50 text-dark-300 hover:text-accent-500"><ChevronDown className="w-3.5 h-3.5" /></button>
@@ -200,7 +196,7 @@ export default function Barang() {
                 </tr>
                 {showHistory === b.idbarang && (
                   <tr key={`h-${b.idbarang}`}>
-                    <td colSpan={13} className="px-4 py-3 bg-warm-50/30">
+                    <td colSpan={12} className="px-4 py-3 bg-warm-50/30">
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
                           <p className="font-semibold text-dark-400 mb-2">History Harga Beli</p>
