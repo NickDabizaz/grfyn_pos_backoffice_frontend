@@ -9,13 +9,25 @@ import Customer from './pages/Customer';
 import Supplier from './pages/Supplier';
 import Pembelian from './pages/Pembelian';
 import Penjualan from './pages/Penjualan';
-import Stok from './pages/Stok';
-import Laporan from './pages/Laporan';
+import Closing from './pages/Closing';
 import Setting from './pages/Setting';
 import Resep from './pages/Resep';
 import Kas from './pages/Kas';
-import Closing from './pages/Closing';
 import Akun from './pages/Akun';
+
+// Stok submenu pages
+import StokSekarang from './pages/stok/StokSekarang';
+import KartuStok from './pages/stok/KartuStok';
+import SaldoAwalStok from './pages/stok/SaldoAwalStok';
+import PenyesuaianStok from './pages/stok/PenyesuaianStok';
+
+// Laporan submenu pages
+import LaporanPenjualan from './pages/laporan/LaporanPenjualan';
+import LaporanPembelian from './pages/laporan/LaporanPembelian';
+import LaporanMasterBarang from './pages/laporan/LaporanMasterBarang';
+import LaporanStokSekarang from './pages/laporan/LaporanStokSekarang';
+import LaporanStokKartuStok from './pages/laporan/LaporanStokKartuStok';
+
 import { useAuthStore } from './store/authStore';
 import { ConfirmProvider } from './components/ui/ConfirmDialog';
 
@@ -41,13 +53,27 @@ export default function App() {
           <Route path="/master/customer" element={<ProtectedRoute><Customer /></ProtectedRoute>} />
           <Route path="/pembelian" element={<ProtectedRoute><Pembelian /></ProtectedRoute>} />
           <Route path="/penjualan" element={<ProtectedRoute><Penjualan /></ProtectedRoute>} />
-          <Route path="/stok" element={<ProtectedRoute><Stok /></ProtectedRoute>} />
           <Route path="/closing" element={<ProtectedRoute><Closing /></ProtectedRoute>} />
-          <Route path="/laporan" element={<ProtectedRoute><Laporan /></ProtectedRoute>} />
           <Route path="/setting" element={<ProtectedRoute><Setting /></ProtectedRoute>} />
           <Route path="/resep" element={<ProtectedRoute><Resep /></ProtectedRoute>} />
           <Route path="/kas" element={<ProtectedRoute><Kas /></ProtectedRoute>} />
           <Route path="/master/akun" element={<ProtectedRoute><Akun /></ProtectedRoute>} />
+
+          {/* Stok submenu */}
+          <Route path="/stok" element={<ProtectedRoute><Navigate to="/stok/sekarang" replace /></ProtectedRoute>} />
+          <Route path="/stok/sekarang" element={<ProtectedRoute><StokSekarang /></ProtectedRoute>} />
+          <Route path="/stok/kartustok" element={<ProtectedRoute><KartuStok /></ProtectedRoute>} />
+          <Route path="/stok/saldoawal" element={<ProtectedRoute><SaldoAwalStok /></ProtectedRoute>} />
+          <Route path="/stok/penyesuaian" element={<ProtectedRoute><PenyesuaianStok /></ProtectedRoute>} />
+
+          {/* Laporan submenu */}
+          <Route path="/laporan" element={<ProtectedRoute><Navigate to="/laporan/penjualan" replace /></ProtectedRoute>} />
+          <Route path="/laporan/penjualan" element={<ProtectedRoute><LaporanPenjualan /></ProtectedRoute>} />
+          <Route path="/laporan/pembelian" element={<ProtectedRoute><LaporanPembelian /></ProtectedRoute>} />
+          <Route path="/laporan/master/barang" element={<ProtectedRoute><LaporanMasterBarang /></ProtectedRoute>} />
+          <Route path="/laporan/stok/sekarang" element={<ProtectedRoute><LaporanStokSekarang /></ProtectedRoute>} />
+          <Route path="/laporan/stok/kartustok" element={<ProtectedRoute><LaporanStokKartuStok /></ProtectedRoute>} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
