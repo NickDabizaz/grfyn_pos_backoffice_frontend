@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, Download, FileText, Upload, RefreshCw } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -43,14 +45,16 @@ export default function Supplier() {
   const load = useCallback(async () => {
     setLoading(true);
     const { data: res } = await api.get('/supplier');
-    if (search) {
-      const s = search.toLowerCase();
-      setData(res.filter(s => s.namasupplier.toLowerCase().includes(s) || s.kodesupplier.toLowerCase().includes(s)));
-    } else {
-      setData(res);
-    }
+    setData(res);
     setLoading(false);
-  }, [search]);
+  }, []);
+
+  const filteredData = search
+    ? data.filter(s => s.namasupplier.toLowerCase().includes(search.toLowerCase()) || s.kodesupplier.toLowerCase().includes(search.toLowerCase()))
+    : data;
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(filteredData, 20);
+  useEffect(() => { resetPage(); }, [search]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -96,11 +100,6 @@ export default function Supplier() {
           <p className="text-sm text-dark-300">Manajemen data supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => { setEditId(null); setForm({ namasupplier: '', alamat: '', hp: '' }); setShowForm(true); }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
             <Plus className="w-4 h-4" /> Tambah Supplier
@@ -116,6 +115,11 @@ export default function Supplier() {
           <button onClick={() => handleImport('/impor/supplier/import', load)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Upload className="w-3.5 h-3.5" /> Import
+          </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
       </div>
@@ -139,7 +143,7 @@ export default function Supplier() {
               </tr>
             </thead>
             <tbody>
-              {data.map((s) => (
+              {paginatedItems.map((s) => (
                 <tr key={s.idsupplier} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
                   <td className="px-4 py-3 text-xs font-mono text-dark-300">{s.kodesupplier}</td>
                   <td className="px-4 py-3 font-medium text-dark-500">{s.namasupplier}</td>
@@ -158,6 +162,7 @@ export default function Supplier() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
 
       {showForm && (

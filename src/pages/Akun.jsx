@@ -3,6 +3,8 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 export default function Akun() {
   const [data, setData]         = useState([]);
@@ -16,14 +18,17 @@ export default function Akun() {
   const load = useCallback(async () => {
     setLoading(true);
     const { data: res } = await api.get('/akun');
-    if (search) {
-      const s = search.toLowerCase();
-      setData(res.filter(a => a.namaakun.toLowerCase().includes(s) || a.kodeakun.toLowerCase().includes(s)));
-    } else {
-      setData(res);
-    }
+    setData(res);
     setLoading(false);
-  }, [search]);
+  }, []);
+
+  const filteredData = search
+    ? data.filter(a => a.namaakun.toLowerCase().includes(search.toLowerCase()) || a.kodeakun.toLowerCase().includes(search.toLowerCase()))
+    : data;
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(filteredData, 20);
+
+  useEffect(() => { resetPage(); }, [search]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -69,15 +74,15 @@ export default function Akun() {
           <p className="text-sm text-dark-300">Daftar akun / chart of accounts</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => { setEditId(null); setForm({ namaakun: '', posisi: 'DEBET' }); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Akun
         </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
       </div>
       </div>
 
@@ -100,7 +105,7 @@ export default function Akun() {
               </tr>
             </thead>
             <tbody>
-              {data.map((a) => (
+              {paginatedItems.map((a) => (
                 <tr key={a.idakun} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
                   <td className="px-4 py-3 text-xs font-mono text-dark-300">{a.kodeakun}</td>
                   <td className="px-4 py-3 font-medium text-dark-500">{a.namaakun}</td>
@@ -121,6 +126,7 @@ export default function Akun() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
 
       {showForm && (

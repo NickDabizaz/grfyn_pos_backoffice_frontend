@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, Download, FileText, Upload, RefreshCw } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -45,6 +47,7 @@ export default function Penjualan() {
   const [bayar, setBayar] = useState('');
   const [usePpn, setUsePpn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [jualSearch, setJualSearch] = useState('');
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
@@ -59,9 +62,13 @@ export default function Penjualan() {
   }, [search]);
 
   const loadJual = useCallback(() => {
-    api.get('/jual').then((r) => setJual(r.data));
-  }, []);
+    const params = jualSearch ? { search: jualSearch } : {};
+    api.get('/jual', { params }).then((r) => setJual(r.data));
+  }, [jualSearch]);
   useEffect(() => { loadJual(); }, [loadJual]);
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(jual, 20);
+  useEffect(() => { resetPage(); }, [jualSearch]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -105,11 +112,6 @@ export default function Penjualan() {
           <p className="text-sm text-dark-300">POS Back Office</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
             className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
@@ -126,11 +128,23 @@ export default function Penjualan() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Upload className="w-3.5 h-3.5" /> Import
           </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
         </div>
       </div>
 
       {showJualList && (
         <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden animate-in">
+          <div className="p-3 border-b border-primary-50">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+              <input type="text" value={jualSearch} onChange={(e) => setJualSearch(e.target.value.toUpperCase())}
+                placeholder="Cari kode penjualan..." className="input-upper w-full pl-10 pr-4 py-2 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
           <div className="max-h-48 overflow-y-auto scrollbar-thin">
             <table className="w-full">
               <thead className="sticky top-0 z-10">
@@ -144,7 +158,7 @@ export default function Penjualan() {
                 </tr>
               </thead>
               <tbody>
-                {jual.map((j) => (
+                {paginatedItems.map((j) => (
                   <tr key={j.idjual} className={`border-b border-primary-50/50 text-xs ${j.status === 0 ? 'bg-red-50/30 opacity-60' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-3 py-2 font-mono text-dark-300">{j.kodejual}</td>
                     <td className="px-3 py-2 text-dark-400">{j.tgltrans?.slice(0,10)}</td>
@@ -165,6 +179,7 @@ export default function Penjualan() {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
       )}
 

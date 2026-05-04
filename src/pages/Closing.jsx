@@ -2,25 +2,32 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { formatDate } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { Lock, Plus, RefreshCw } from 'lucide-react';
+import { Lock, Plus, RefreshCw, Search } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 export default function Closing() {
   const [closing, setClosing] = useState([]);
   const [clsJenis, setClsJenis] = useState('harian');
   const [clsTgl, setClsTgl] = useState(new Date().toISOString().slice(0, 10));
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
 
   const load = () => {
-    api.get('/stok/closing').then((r) => setClosing(r.data));
+    const params = search ? { search } : {};
+    api.get('/stok/closing', { params }).then((r) => setClosing(r.data));
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [search]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await new Promise((r) => { load(); setTimeout(r, 200); });
     setRefreshing(false);
   };
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(closing, 20);
+  useEffect(() => { resetPage(); }, [search]);
 
   const handleClosing = async () => {
     try {
@@ -40,9 +47,9 @@ export default function Closing() {
           <p className="text-sm text-dark-300">Tutup periode stok (Harian / Bulanan)</p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
           title="Refresh halaman">
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 
@@ -71,6 +78,12 @@ export default function Closing() {
         </div>
       </div>
 
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value.toUpperCase())}
+          placeholder="Cari kode closing..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+      </div>
+
       <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
         <table className="w-full">
           <thead>
@@ -82,7 +95,7 @@ export default function Closing() {
             </tr>
           </thead>
           <tbody>
-            {closing.map((c) => (
+            {paginatedItems.map((c) => (
               <tr key={c.idclosing} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
                 <td className="px-4 py-3 text-xs font-mono text-dark-300">{c.kodeclosing}</td>
                 <td className="px-4 py-3 text-dark-400">{formatDate(c.tglclosing)}</td>
@@ -99,6 +112,7 @@ export default function Closing() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
     </div>
   );

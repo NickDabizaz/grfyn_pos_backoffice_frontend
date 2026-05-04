@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { Plus, Search, ShoppingBag, X, Trash2, Ban, Download, FileText, Upload, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 const downloadFile = (url, filename) => {
   api.get(url, { responseType: 'blob' }).then((r) => {
@@ -44,10 +46,17 @@ export default function Pembelian() {
   const [searchCart, setSearchCart] = useState('');
   const [usePpn, setUsePpn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
   const user = useAuthStore((s) => s.user);
 
-  const loadBeli = useCallback(() => { api.get('/beli').then((r) => setBeli(r.data)); }, []);
+  const loadBeli = useCallback(() => {
+    const params = search ? { search } : {};
+    api.get('/beli', { params }).then((r) => setBeli(r.data));
+  }, [search]);
   useEffect(() => { loadBeli(); api.get('/supplier').then((r) => setSuppliers(r.data)); }, [loadBeli]);
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(beli, 20);
+  useEffect(() => { resetPage(); }, [search]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -99,11 +108,6 @@ export default function Pembelian() {
           <p className="text-sm text-dark-300">Catat pembelian barang dari supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-accent-500/20 active:scale-[0.98]">
             <Plus className="w-4 h-4" /> Pembelian Baru
           </button>
@@ -119,7 +123,18 @@ export default function Pembelian() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Upload className="w-3.5 h-3.5" /> Import
           </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
         </div>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value.toUpperCase())}
+          placeholder="Cari kode pembelian..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
       </div>
 
       <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
@@ -137,7 +152,7 @@ export default function Pembelian() {
               </tr>
             </thead>
             <tbody>
-              {beli.map((b) => (
+              {paginatedItems.map((b) => (
                 <tr key={b.idbeli} className={`border-b border-primary-50/50 text-sm ${b.status === 0 ? 'bg-red-50/30 opacity-60' : 'hover:bg-warm-50/30'}`}>
                   <td className="px-4 py-3 text-xs font-mono text-dark-300">{b.kodebeli}</td>
                   <td className="px-4 py-3 text-dark-400">{b.tgltrans?.slice(0,10)}</td>
@@ -159,6 +174,7 @@ export default function Pembelian() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
 
       {showForm && (

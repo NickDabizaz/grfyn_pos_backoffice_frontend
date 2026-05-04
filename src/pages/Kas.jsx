@@ -4,6 +4,8 @@ import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 const EMPTY_DETAIL = { idakun: '', catatan: '', amount: '' };
 
@@ -23,6 +25,9 @@ export default function Kas() {
     api.get('/kas', { params }).then((r) => setKas(r.data));
   };
   useEffect(() => { load(); }, [search]);
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(kas, 20);
+  useEffect(() => { resetPage(); }, [search]);
 
   useEffect(() => { api.get('/akun').then((r) => setAkun(r.data)); }, []);
 
@@ -98,15 +103,15 @@ export default function Kas() {
           <p className="text-sm text-dark-300">Manajemen kas masuk & keluar</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => { setEditId(null); setForm({ details: [{ ...EMPTY_DETAIL }] }); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Kas
         </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
       </div>
       </div>
 
@@ -129,7 +134,7 @@ export default function Kas() {
               </tr>
             </thead>
             <tbody>
-              {kas.map((k) => (
+              {paginatedItems.map((k) => (
                 <>
                 <tr key={k.idkas} className="border-b border-primary-50/50 hover:bg-warm-50/30 transition-colors text-sm">
                   <td className="px-3 py-3 text-xs font-mono text-dark-300">{k.kodekas}</td>
@@ -173,6 +178,7 @@ export default function Kas() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
 
       {showForm && (

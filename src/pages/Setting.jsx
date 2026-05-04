@@ -65,9 +65,9 @@ export default function Setting() {
           <p className="text-sm text-dark-300">Konfigurasi toko & akun</p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
           title="Refresh halaman">
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 

@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { Search, Plus, ClipboardList, RotateCcw, Package, ArrowDown, ArrowUp, X, RefreshCw } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 export default function Stok() {
   const [tab, setTab] = useState('kartu');
@@ -17,6 +19,7 @@ export default function Stok() {
 
   // Penyesuaian
   const [penyesuaian, setPenyesuaian] = useState([]);
+  const [pnSearch, setPnSearch] = useState('');
   const [showAdjForm, setShowAdjForm] = useState(false);
   const [adjCart, setAdjCart] = useState([]);
   const [adjSearch, setAdjSearch] = useState('');
@@ -25,11 +28,13 @@ export default function Stok() {
 
   // Saldo Stok
   const [saldo, setSaldo] = useState([]);
+  const [slSearch, setSlSearch] = useState('');
 
   // Closing
   const [closing, setClosing] = useState([]);
   const [clsJenis, setClsJenis] = useState('harian');
   const [clsTgl, setClsTgl] = useState(new Date().toISOString().slice(0, 10));
+  const [clSearch, setClSearch] = useState('');
 
   // Saldo Awal
   const [showSaldoAwal, setShowSaldoAwal] = useState(false);
@@ -41,9 +46,9 @@ export default function Stok() {
 
   const loadAll = () => {
     loadKartu();
-    api.get('/stok/penyesuaian').then((r) => setPenyesuaian(r.data));
+    loadPenyesuaian();
     api.get('/stok/saldostok').then((r) => setSaldo(r.data));
-    api.get('/stok/closing').then((r) => setClosing(r.data));
+    loadClosing();
   };
   useEffect(() => { loadAll(); }, []);
 
@@ -55,10 +60,36 @@ export default function Stok() {
 
   const loadKartu = () => {
     const params = {};
-    if (ksSearch) params.idbarang = ksSearch;
+    if (ksSearch) params.search = ksSearch;
     if (ksJenis) params.jenis = ksJenis;
     api.get('/stok/kartustok', { params }).then((r) => setKartu(r.data));
   };
+
+  const loadPenyesuaian = () => {
+    const params = {};
+    if (pnSearch) params.search = pnSearch;
+    api.get('/stok/penyesuaian', { params }).then((r) => setPenyesuaian(r.data));
+  };
+
+  const loadClosing = () => {
+    const params = {};
+    if (clSearch) params.search = clSearch;
+    api.get('/stok/closing', { params }).then((r) => setClosing(r.data));
+  };
+
+  const filteredSaldo = slSearch
+    ? saldo.filter(s => s.kodebarang?.toLowerCase().includes(slSearch.toLowerCase()) || s.namabarang?.toLowerCase().includes(slSearch.toLowerCase()))
+    : saldo;
+
+  const ksPag = usePagination(kartu, 20);
+  const slPag = usePagination(filteredSaldo, 20);
+  const pnPag = usePagination(penyesuaian, 20);
+  const clPag = usePagination(closing, 20);
+
+  useEffect(() => { ksPag.resetPage(); }, [ksSearch, ksJenis]);
+  useEffect(() => { slPag.resetPage(); }, [slSearch]);
+  useEffect(() => { pnPag.resetPage(); }, [pnSearch]);
+  useEffect(() => { clPag.resetPage(); }, [clSearch]);
 
   const searchAdj = (term) => {
     const q = term || adjSearch;
@@ -135,11 +166,23 @@ export default function Stok() {
 
   const handleClosing = async () => {
     try {
-      await api.post('/stok/closing', { jenis: clsJenis, tglclosing: clsTgl });
-      toast.success('Closing berhasil');
+      const periode = clsJenis === 'HARIAN' ? clsTgl : clsBulan;
+      await api.post('/stok/closing', { jenis: clsJenis, periode });
+      toast.success(`Closing ${clsJenis} berhasil`);
       api.get('/stok/closing').then((r) => setClosing(r.data));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal');
+    }
+  };
+
+  const handleCancelClosing = async (id, kode) => {
+    if (!window.confirm(`Yakin membatalkan closing ${kode}?`)) return;
+    try {
+      await api.put(`/stok/closing/${id}/cancel`);
+      toast.success('Closing dibatalkan');
+      api.get('/stok/closing').then((r) => setClosing(r.data));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal membatalkan');
     }
   };
 
@@ -158,9 +201,9 @@ export default function Stok() {
           <p className="text-sm text-dark-300">Manajemen stok & inventori</p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
           title="Refresh halaman">
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 
@@ -182,7 +225,7 @@ export default function Stok() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
               <input value={ksSearch} onChange={(e) => setKsSearch(e.target.value.toUpperCase())}
-                placeholder="ID Barang..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+                placeholder="Cari kode transaksi..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
             </div>
             <div className="w-48">
               <SearchableSelect
@@ -210,7 +253,7 @@ export default function Stok() {
                 </tr>
               </thead>
               <tbody>
-                {kartu.map((k) => (
+                {ksPag.paginatedItems.map((k) => (
                   <tr key={k.idkartustok} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
                     <td className="px-4 py-3 text-xs text-dark-300">{formatDate(k.tgltrans)}</td>
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{k.kodetrans}</td>
@@ -229,6 +272,7 @@ export default function Stok() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={ksPag.page} totalPages={ksPag.totalPages} setPage={ksPag.setPage} />
           </div>
         </div>
       )}
@@ -236,10 +280,17 @@ export default function Stok() {
       {/* Saldo Stok */}
       {tab === 'saldo' && (
         <div className="space-y-4">
-          <button onClick={() => setShowSaldoAwal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all">
-            <Plus className="w-4 h-4" /> Tambah Saldo Awal
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSaldoAwal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all">
+              <Plus className="w-4 h-4" /> Tambah Saldo Awal
+            </button>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+              <input value={slSearch} onChange={(e) => setSlSearch(e.target.value.toUpperCase())}
+                placeholder="Cari kode/nama barang..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
           <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
           <table className="w-full">
             <thead>
@@ -253,7 +304,7 @@ export default function Stok() {
               </tr>
             </thead>
             <tbody>
-              {saldo.map((s) => (
+              {slPag.paginatedItems.map((s) => (
                 <tr key={s.idbarang} className={`border-b border-primary-50/50 text-sm ${(s.stok || 0) <= (s.stokmin || 0) ? 'bg-red-50/30' : 'hover:bg-warm-50/30'}`}>
                   <td className="px-4 py-3 text-xs font-mono text-dark-300">{s.kodebarang}</td>
                   <td className="px-4 py-3 font-medium text-dark-500">{s.namabarang}</td>
@@ -271,6 +322,7 @@ export default function Stok() {
               ))}
             </tbody>
           </table>
+          <Pagination page={slPag.page} totalPages={slPag.totalPages} setPage={slPag.setPage} />
           </div>
         </div>
       )}
@@ -278,10 +330,17 @@ export default function Stok() {
       {/* Penyesuaian */}
       {tab === 'penyesuaian' && (
         <div className="space-y-4">
-          <button onClick={() => setShowAdjForm(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-all">
-            <Plus className="w-4 h-4" /> Penyesuaian Baru
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowAdjForm(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-all">
+              <Plus className="w-4 h-4" /> Penyesuaian Baru
+            </button>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+              <input value={pnSearch} onChange={(e) => setPnSearch(e.target.value.toUpperCase())}
+                placeholder="Cari kode penyesuaian..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
 
           <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
             <table className="w-full">
@@ -294,7 +353,7 @@ export default function Stok() {
                 </tr>
               </thead>
               <tbody>
-                {penyesuaian.map((p) => (
+                {pnPag.paginatedItems.map((p) => (
                   <tr key={p.idpenyesuaianstok} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{p.kodepenyesuaianstok}</td>
                     <td className="px-4 py-3 text-dark-400">{formatDate(p.tgltrans)}</td>
@@ -304,6 +363,7 @@ export default function Stok() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={pnPag.page} totalPages={pnPag.totalPages} setPage={pnPag.setPage} />
           </div>
 
           {showAdjForm && (
@@ -380,6 +440,12 @@ export default function Stok() {
             </div>
           </div>
 
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+            <input value={clSearch} onChange={(e) => setClSearch(e.target.value.toUpperCase())}
+              placeholder="Cari kode closing..." className="input-upper w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+
           <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
             <table className="w-full">
               <thead>
@@ -391,16 +457,44 @@ export default function Stok() {
                 </tr>
               </thead>
               <tbody>
-                {closing.map((c) => (
+                {clPag.paginatedItems.map((c) => (
                   <tr key={c.idclosing} className="border-b border-primary-50/50 text-sm">
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{c.kodeclosing}</td>
-                    <td className="px-4 py-3 text-dark-400">{formatDate(c.tglclosing)}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-lg bg-accent-50 text-accent-600 text-[10px] font-bold uppercase">{c.jenis}</span></td>
-                    <td className="px-4 py-3 text-emerald-600 text-xs font-bold">Selesai</td>
+                    <td className="px-4 py-3 text-dark-400">
+                      {c.jenis === 'HARIAN' ? formatDate(c.periode_start) : (c.periode_start || '').slice(0, 7)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${
+                        c.jenis === 'HARIAN' ? 'bg-sky-50 text-sky-600' : 'bg-violet-50 text-violet-600'
+                      }`}>
+                        {c.jenis}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.status === 1 ? (
+                        <span className="text-emerald-600 text-xs font-bold">Aktif</span>
+                      ) : (
+                        <span className="text-red-500 text-xs font-bold">Dibatalkan</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {c.status === 1 && (
+                        <button onClick={() => handleCancelClosing(c.idclosing, c.kodeclosing)}
+                          className="text-xs text-red-500 hover:text-red-600 font-semibold">
+                          Batalkan
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
+                {closing.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-dark-300 text-sm">Belum ada closing</td>
+                  </tr>
+                )}
               </tbody>
             </table>
+            <Pagination page={clPag.page} totalPages={clPag.totalPages} setPage={clPag.setPage} />
           </div>
         </div>
       )}

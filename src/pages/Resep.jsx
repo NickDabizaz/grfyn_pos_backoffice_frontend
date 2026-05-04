@@ -3,6 +3,8 @@ import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, X, ChevronDown, RefreshCw } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 const INIT_DTL = { idbarang: '', jml: '', satuan: '', harga: '' };
 const INIT_FORM = { idbarang: '', details: [] };
@@ -26,6 +28,9 @@ export default function Resep() {
     api.get('/resep', { params }).then((r) => setResep(r.data));
   };
   useEffect(() => { load(); }, [search]);
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(resep, 20);
+  useEffect(() => { resetPage(); }, [search]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -117,15 +122,15 @@ export default function Resep() {
           <p className="text-sm text-dark-300">Manajemen resep / formula produk</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleRefresh} disabled={refreshing}
-            className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-            title="Refresh halaman">
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button onClick={() => { setEditId(null); setSearchBarangJadi(''); setSearchBarangBaku(''); setForm({...INIT_FORM}); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">
           <Plus className="w-4 h-4" /> Tambah Resep
         </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
       </div>
       </div>
 
@@ -148,7 +153,7 @@ export default function Resep() {
               </tr>
             </thead>
             <tbody>
-              {resep.map((r) => (
+              {paginatedItems.map((r) => (
                 <>
                 <tr key={r.idresep} className="border-b border-primary-50/50 hover:bg-warm-50/30 transition-colors text-sm">
                   <td className="px-4 py-3 text-xs font-mono text-dark-500 font-semibold">{r.koderesep}</td>
@@ -206,6 +211,7 @@ export default function Resep() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
 
       {showForm && (

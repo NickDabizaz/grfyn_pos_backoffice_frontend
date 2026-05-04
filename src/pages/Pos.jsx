@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
 import { Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Printer, X, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/ui/Pagination';
 
 export default function Pos() {
   const [search, setSearch] = useState('');
@@ -18,8 +20,9 @@ export default function Pos() {
   const [bayar, setBayar] = useState('');
   const [usePpn, setUsePpn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
+  const [prodPage, setProdPage] = useState(1);
   const [stockData, setStockData] = useState([]);
+  const [jualSearch, setJualSearch] = useState('');
   const PAGE_SIZE = 12;
   const { items, customer, addItem, removeItem, updateQty, setCustomer, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
@@ -46,11 +49,11 @@ export default function Pos() {
   }, [loadProducts]);
 
   useEffect(() => {
-    const start = (page - 1) * PAGE_SIZE;
+    const start = (prodPage - 1) * PAGE_SIZE;
     setProducts(allProducts.slice(start, start + PAGE_SIZE));
-  }, [allProducts, page]);
+  }, [allProducts, prodPage]);
 
-  const totalPages = Math.ceil(allProducts.length / PAGE_SIZE);
+  const totalProdPages = Math.ceil(allProducts.length / PAGE_SIZE);
 
   const getStock = (idbarang) => {
     const s = stockData.find((s) => s.idbarang === idbarang);
@@ -58,8 +61,9 @@ export default function Pos() {
   };
 
   const loadJual = useCallback(() => {
-    api.get('/jual').then((r) => setJual(r.data));
-  }, []);
+    const params = jualSearch ? { search: jualSearch } : {};
+    api.get('/jual', { params }).then((r) => setJual(r.data));
+  }, [jualSearch]);
   useEffect(() => { loadJual(); }, [loadJual]);
 
   const handleRefresh = async () => {
@@ -67,6 +71,9 @@ export default function Pos() {
     await Promise.all([loadProducts(), api.get('/customer').then((r) => setCustomers(r.data)), api.get('/stok/saldostok').then((r) => setStockData(r.data)), loadJual()]);
     setRefreshing(false);
   };
+
+  const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(jual, 20);
+  useEffect(() => { resetPage(); }, [jualSearch]);
 
   const grandTotal = items.reduce((sum, item) => {
     const ppn = usePpn ? (item.harga * item.jml * (user?.ppn || 11)) / 100 : 0;
@@ -103,19 +110,28 @@ export default function Pos() {
           <h2 className="text-2xl font-bold text-dark-500">POS / Kasir</h2>
           <p className="text-sm text-dark-300">Transaksi penjualan</p>
         </div>
-        <button onClick={handleRefresh} disabled={refreshing}
-          className={`p-2 rounded-xl border border-primary-100 text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
-          title="Refresh halaman">
-          <RefreshCw className="w-4 h-4" />
-        </button>
-        <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
-          className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-          {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setShowJualList(!showJualList); loadJual(); }}
+            className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
+          </button>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh halaman">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       {showJualList && (
         <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden animate-in">
+          <div className="p-3 border-b border-primary-50">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+              <input type="text" value={jualSearch} onChange={(e) => setJualSearch(e.target.value.toUpperCase())}
+                placeholder="Cari kode penjualan..." className="input-upper w-full pl-10 pr-4 py-2 rounded-xl border border-primary-100 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
           <div className="max-h-48 overflow-y-auto scrollbar-thin">
             <table className="w-full">
               <thead className="sticky top-0 z-10">
@@ -129,7 +145,7 @@ export default function Pos() {
                 </tr>
               </thead>
               <tbody>
-                {jual.map((j) => (
+                {paginatedItems.map((j) => (
                   <tr key={j.idjual} className={`border-b border-primary-50/50 text-xs ${j.status === 0 ? 'bg-red-50/30 opacity-60' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-3 py-2 font-mono text-dark-300">{j.kodejual}</td>
                     <td className="px-3 py-2 text-dark-400">{j.tgltrans?.slice(0,10)}</td>
@@ -150,6 +166,7 @@ export default function Pos() {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
       )}
 
@@ -181,14 +198,14 @@ export default function Pos() {
                 );
               })}
             </div>
-            {totalPages > 1 && (
+            {totalProdPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-4 pb-2">
-                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}
+                <button onClick={() => setProdPage(Math.max(1, prodPage - 1))} disabled={prodPage <= 1}
                   className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-xs text-dark-400 px-2">{page} / {totalPages}</span>
-                <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
+                <span className="text-xs text-dark-400 px-2">{prodPage} / {totalProdPages}</span>
+                <button onClick={() => setProdPage(Math.min(totalProdPages, prodPage + 1))} disabled={prodPage >= totalProdPages}
                   className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-400 disabled:opacity-30">
                   <ChevronRight className="w-4 h-4" />
                 </button>
