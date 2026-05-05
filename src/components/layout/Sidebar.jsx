@@ -9,7 +9,7 @@ import {
 
 const menu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/pos', label: 'POS / Kasir', icon: ShoppingCart },
+  { to: '/pos', label: 'POS', icon: ShoppingCart },
   {
     label: 'Master', icon: Package, children: [
       { to: '/master/barang', label: 'Barang' },
@@ -22,33 +22,25 @@ const menu = [
   { to: '/penjualan', label: 'Penjualan', icon: ReceiptText },
   {
     label: 'Stok', icon: Warehouse, children: [
-      { to: '/stok/sekarang', label: 'Stok Sekarang' },
-      { to: '/stok/kartustok', label: 'Kartu Stok' },
       { to: '/stok/saldoawal', label: 'Saldo Awal Stok' },
       { to: '/stok/penyesuaian', label: 'Penyesuaian Stok / Opname Stok' },
     ]
   },
-  { to: '/closing', label: 'Closing', icon: Lock },
-  { to: '/resep', label: 'Perhitungan Resep', icon: Beaker },
   { to: '/kas', label: 'Kas', icon: Coins },
   {
     label: 'Laporan', icon: FileBarChart, children: [
       { to: '/laporan/penjualan', label: 'Penjualan' },
       { to: '/laporan/pembelian', label: 'Pembelian' },
-      {
-        label: 'Master', children: [
-          { to: '/laporan/master/barang', label: 'Barang' },
-        ]
-      },
-      {
-        label: 'Stok', children: [
-          { to: '/laporan/stok/sekarang', label: 'Stok Sekarang' },
-          { to: '/laporan/stok/kartustok', label: 'Kartu Stok' },
-        ]
-      },
+      { to: '/laporan/master/barang', label: 'Barang' },
+      { to: '/laporan/stok/sekarang', label: 'Stok Sekarang' },
+      { to: '/laporan/stok/kartustok', label: 'Kartu Stok' },
     ]
   },
-  { to: '/setting', label: 'Setting', icon: Settings },
+  {
+    label: 'Setting', icon: Settings, children: [
+      { to: '/setting', label: 'Perusahaan' },
+    ]
+  },
 ];
 
 function MenuItem({ item, level = 0, openSet, toggle }) {

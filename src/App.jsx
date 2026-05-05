@@ -9,15 +9,11 @@ import Customer from './pages/Customer';
 import Supplier from './pages/Supplier';
 import Pembelian from './pages/Pembelian';
 import Penjualan from './pages/Penjualan';
-import Closing from './pages/Closing';
 import Setting from './pages/Setting';
-import Resep from './pages/Resep';
 import Kas from './pages/Kas';
 import Akun from './pages/Akun';
 
 // Stok submenu pages
-import StokSekarang from './pages/stok/StokSekarang';
-import KartuStok from './pages/stok/KartuStok';
 import SaldoAwalStok from './pages/stok/SaldoAwalStok';
 import PenyesuaianStok from './pages/stok/PenyesuaianStok';
 
@@ -53,16 +49,12 @@ export default function App() {
           <Route path="/master/customer" element={<ProtectedRoute><Customer /></ProtectedRoute>} />
           <Route path="/pembelian" element={<ProtectedRoute><Pembelian /></ProtectedRoute>} />
           <Route path="/penjualan" element={<ProtectedRoute><Penjualan /></ProtectedRoute>} />
-          <Route path="/closing" element={<ProtectedRoute><Closing /></ProtectedRoute>} />
           <Route path="/setting" element={<ProtectedRoute><Setting /></ProtectedRoute>} />
-          <Route path="/resep" element={<ProtectedRoute><Resep /></ProtectedRoute>} />
           <Route path="/kas" element={<ProtectedRoute><Kas /></ProtectedRoute>} />
           <Route path="/master/akun" element={<ProtectedRoute><Akun /></ProtectedRoute>} />
 
           {/* Stok submenu */}
-          <Route path="/stok" element={<ProtectedRoute><Navigate to="/stok/sekarang" replace /></ProtectedRoute>} />
-          <Route path="/stok/sekarang" element={<ProtectedRoute><StokSekarang /></ProtectedRoute>} />
-          <Route path="/stok/kartustok" element={<ProtectedRoute><KartuStok /></ProtectedRoute>} />
+          <Route path="/stok" element={<ProtectedRoute><Navigate to="/stok/saldoawal" replace /></ProtectedRoute>} />
           <Route path="/stok/saldoawal" element={<ProtectedRoute><SaldoAwalStok /></ProtectedRoute>} />
           <Route path="/stok/penyesuaian" element={<ProtectedRoute><PenyesuaianStok /></ProtectedRoute>} />
 
