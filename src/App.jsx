@@ -14,9 +14,12 @@ import Penjualan from './pages/Penjualan';
 import Setting from './pages/Setting';
 import Kas from './pages/Kas';
 import Akun from './pages/Akun';
+import User from './pages/User';
+import Lokasi from './pages/Lokasi';
 
 import SaldoAwalStok from './pages/stok/SaldoAwalStok';
 import PenyesuaianStok from './pages/stok/PenyesuaianStok';
+import HitungHPP from './pages/stok/HitungHPP';
 
 import LaporanPenjualan from './pages/laporan/LaporanPenjualan';
 import LaporanPembelian from './pages/laporan/LaporanPembelian';
@@ -45,6 +48,8 @@ export default function App() {
             <Route path="/master/supplier" element={<Supplier />} />
             <Route path="/master/customer" element={<Customer />} />
             <Route path="/master/akun" element={<Akun />} />
+            <Route path="/master/user" element={<User />} />
+            <Route path="/master/lokasi" element={<Lokasi />} />
             <Route path="/pembelian" element={<Pembelian />} />
             <Route path="/penjualan" element={<Penjualan />} />
             <Route path="/setting" element={<Setting />} />
@@ -52,6 +57,7 @@ export default function App() {
             <Route path="/stok" element={<Navigate to="/stok/saldoawal" replace />} />
             <Route path="/stok/saldoawal" element={<SaldoAwalStok />} />
             <Route path="/stok/penyesuaian" element={<PenyesuaianStok />} />
+            <Route path="/stok/hitunghpp" element={<HitungHPP />} />
             <Route path="/laporan" element={<Navigate to="/laporan/penjualan" replace />} />
             <Route path="/laporan/penjualan" element={<LaporanPenjualan />} />
             <Route path="/laporan/pembelian" element={<LaporanPembelian />} />

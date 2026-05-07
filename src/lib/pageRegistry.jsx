@@ -1,4 +1,4 @@
-import { LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse, ReceiptText, Coins, FileBarChart, Settings, UserCog, MapPin, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse, ReceiptText, Coins, FileBarChart, Settings, UserCog, MapPin, ClipboardList, Calculator } from 'lucide-react';
 
 import Dashboard from '../pages/Dashboard';
 import Pos from '../pages/Pos';
@@ -6,12 +6,15 @@ import Barang from '../pages/Barang';
 import Supplier from '../pages/Supplier';
 import Customer from '../pages/Customer';
 import Akun from '../pages/Akun';
+import User from '../pages/User';
+import Lokasi from '../pages/Lokasi';
 import Pembelian from '../pages/Pembelian';
 import Penjualan from '../pages/Penjualan';
 import Kas from '../pages/Kas';
 import Setting from '../pages/Setting';
 import SaldoAwalStok from '../pages/stok/SaldoAwalStok';
 import PenyesuaianStok from '../pages/stok/PenyesuaianStok';
+import HitungHPP from '../pages/stok/HitungHPP';
 import LaporanPenjualan from '../pages/laporan/LaporanPenjualan';
 import LaporanPembelian from '../pages/laporan/LaporanPembelian';
 import LaporanMasterBarang from '../pages/laporan/LaporanMasterBarang';
@@ -48,24 +51,14 @@ const registry = {
     label    : 'Akun',
   },
   'master.user': {
-    component: () => (
-      <div className = "p-6">
-      <h2  className = "text-lg font-bold text-dark-500 mb-4">User</h2>
-      <p   className = "text-dark-300 text-sm">Halaman Master User akan diimplementasikan di frontend.</p>
-      </div>
-    ),
-    label: 'User',
-    icon : UserCog,
+    component: User,
+    label    : 'User',
+    icon     : UserCog,
   },
   'master.lokasi': {
-    component: () => (
-      <div className = "p-6">
-      <h2  className = "text-lg font-bold text-dark-500 mb-4">Lokasi</h2>
-      <p   className = "text-dark-300 text-sm">Halaman Lokasi akan diimplementasikan di frontend.</p>
-      </div>
-    ),
-    label: 'Lokasi',
-    icon : MapPin,
+    component: Lokasi,
+    label    : 'Lokasi',
+    icon     : MapPin,
   },
   'pembelian': {
     component: Pembelian,
@@ -84,6 +77,11 @@ const registry = {
   'stok.penyesuaian': {
     component: PenyesuaianStok,
     label    : 'Penyesuaian Stok',
+  },
+  'stok.hitunghpp': {
+    component: HitungHPP,
+    label    : 'Hitung HPP',
+    icon     : Calculator,
   },
   'stok.kartustok': {
     component: () => (
