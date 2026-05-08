@@ -110,7 +110,7 @@ export default function Sidebar({ onLogout }) {
         </div>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto scrollbar-thin">
-        {menuTree.map((m) => (
+        {menuTree.filter((m) => m.kodemenu !== 'pos').map((m) => (
           <MenuItem key={m.idmenu} item={m} level={0} openSet={openSet} toggle={toggle} onNavigate={handleNavigate} />
         ))}
       </nav>
@@ -124,6 +124,18 @@ export default function Sidebar({ onLogout }) {
             <p className="text-[10px] text-dark-300 truncate">{user?.email || '-'}</p>
           </div>
         </div>
+        {(() => {
+          const posItem = menuTree.find((m) => m.kodemenu === 'pos');
+          if (!posItem) return null;
+          const Icon = posItem.icon ? getIcon(posItem.icon) : ShoppingCart;
+          return (
+            <button
+              onClick={() => handleNavigate(posItem)}
+              className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg text-xs font-medium text-dark-400 hover:bg-warm-50 hover:text-dark-500 transition-colors">
+              <Icon className="w-3.5 h-3.5" /> {posItem.namamenu}
+            </button>
+          );
+        })()}
         <button onClick={onLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-dark-300 hover:bg-red-50 hover:text-red-500 transition-colors">
           <LogOut className="w-3.5 h-3.5" /> Keluar

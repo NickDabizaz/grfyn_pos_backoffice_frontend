@@ -38,13 +38,14 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Barang({ isActive, tabState, updateTabState }) {
-  const [barang, setBarang]       = useState([]);
-  const [search, setSearch]       = useState('');
-  const [warnings, setWarnings]   = useState([]);
-  const [historyBeli, setHistoryBeli] = useState([]);
-  const [historyJual, setHistoryJual] = useState([]);
-  const [showHistory, setShowHistory] = useState(null);
-  const [refreshing, setRefreshing]   = useState(false);
+  const [barang, setBarang]                     = useState([]);
+  const [search, setSearch]                     = useState('');
+  const [warnings, setWarnings]                 = useState([]);
+  const [historyBeli, setHistoryBeli]           = useState([]);
+  const [historyJual, setHistoryJual]           = useState([]);
+  const [showHistory, setShowHistory]           = useState(null);
+  const [refreshing, setRefreshing]             = useState(false);
+  const [showTemplateInfo, setShowTemplateInfo] = useState(false);
 
   const openTab = useTabStore((s) => s.openTab);
   const confirm = useConfirm();
@@ -69,21 +70,21 @@ export default function Barang({ isActive, tabState, updateTabState }) {
 
   const handleTambah = () => {
     openTab({
-      label: 'Barang',
-      icon: Plus,
+      label    : 'Barang',
+      icon     : Plus,
       component: BarangForm,
-      props: { mode: 'add', onSuccess: load },
-      type: 'form_add',
+      props    : { mode: 'add', onSuccess: load },
+      type     : 'form_add',
     });
   };
 
   const handleEdit = (b) => {
     openTab({
-      label: `${b.kodebarang}`,
-      icon: Pencil,
+      label    : `${b.kodebarang}`,
+      icon     : Pencil,
       component: BarangForm,
-      props: { mode: 'edit', idbarang: b.idbarang, data: b, onSuccess: load },
-      type: 'form_edit',
+      props    : { mode: 'edit', idbarang: b.idbarang, data: b, onSuccess: load },
+      type     : 'form_edit',
     });
   };
 
@@ -121,9 +122,9 @@ export default function Barang({ isActive, tabState, updateTabState }) {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Download className="w-3.5 h-3.5" /> Export
           </button>
-          <button onClick={() => downloadFile('/impor/barang/template', 'barang-template.csv')}
+          <button onClick={() => setShowTemplateInfo(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-            <FileText className="w-3.5 h-3.5" /> Template
+            <FileText className="w-3.5 h-3.5" /> Unduh Template
           </button>
           <button onClick={() => handleImport('/impor/barang/import', load)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
@@ -155,18 +156,19 @@ export default function Barang({ isActive, tabState, updateTabState }) {
             <table className="w-full min-w-[900px]">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-primary-50 bg-warm-50/50">
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Kode</th>
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Nama Barang</th>
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Bsr</th>
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Sdg</th>
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Sat Kcl</th>
-                  <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-16">K1</th>
-                  <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-16">K2</th>
-                  <th className="text-left    px-3 py-3 text-xs font-semibold text-dark-300">Jenis</th>
-                  <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Beli</th>
-                  <th className="text-right   px-3 py-3 text-xs font-semibold text-dark-300">Harga Jual</th>
-                  <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300">Stok Min</th>
-                  <th className="text-center  px-3 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[7%]">Kode</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[18%]">Nama Barang</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Sat. Bessr</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Sat. Sedang</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Sat. Kecil</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Konversi1</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Konversi2</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[11%]">Jenis</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[9%]">Harga Beli</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[9%]">Harga Jual</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[5%]">Stok Min</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[9%]">Status</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-dark-300 w-[7%]">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,7 +183,7 @@ export default function Barang({ isActive, tabState, updateTabState }) {
                     <td className="px-3 py-3 text-center text-dark-300">{b.konversi1 || 0}</td>
                     <td className="px-3 py-3 text-center text-dark-300">{b.konversi2 || 0}</td>
                     <td className="px-3 py-3">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-lg ${
+                      <span className={`inline-block whitespace-nowrap text-[10px] font-semibold px-1.5 py-0.5 rounded-lg ${
                         b.jenis === 'BAHAN BAKU' ? 'bg-amber-50 text-amber-700' :
                         b.jenis === 'BAHAN SETENGAH JADI' ? 'bg-blue-50 text-blue-700' :
                         'bg-emerald-50 text-emerald-700'
@@ -194,6 +196,13 @@ export default function Barang({ isActive, tabState, updateTabState }) {
                       {formatRupiah(b.hargajual_terbaru)}
                     </td>
                     <td className="px-3 py-3 text-center text-dark-400">{b.stokmin}</td>
+                    <td className="px-3 py-3 text-center">
+                      <span className={`inline-block whitespace-nowrap text-[10px] font-semibold px-1.5 py-0.5 rounded-lg ${
+                        b.status === 'AKTIF' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {b.status || 'AKTIF'}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => loadHistory(b.idbarang)} className="p-1.5 rounded-lg hover:bg-accent-50 text-dark-300 hover:text-accent-500" title="Lihat history harga">
@@ -246,6 +255,51 @@ export default function Barang({ isActive, tabState, updateTabState }) {
           <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
       </div>
+
+      {showTemplateInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowTemplateInfo(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-dark-500 mb-1">Panduan Isi Template Barang</h3>
+            <p className="text-xs text-dark-300 mb-4">Pastikan format CSV sudah sesuai sebelum import.</p>
+            <div className="space-y-2 text-sm">
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">namabarang</span>
+                <span className="text-dark-400"><span className="text-red-500 font-semibold">Wajib.</span> Nama produk, contoh: <span className="font-mono">BERAS PREMIUM 5KG</span></span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">satuanbesar / satuansedang / satuankecil</span>
+                <span className="text-dark-400"><span className="text-red-500 font-semibold">Minimal 1 diisi.</span> Contoh: <span className="font-mono">KAR</span> / <span className="font-mono">SAK</span> / <span className="font-mono">KG</span>. Kolom yang tidak dipakai boleh kosong.</span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">konversi1 konversi2</span>
+                <span className="text-dark-400"><span className="text-red-500 font-semibold">Wajib diisi.</span> Rasio antar satuan. Jika hanya 1 satuan, isi kedua kolom dengan <span className="font-mono">1</span>. Contoh 3 satuan: konversi1 = <span className="font-mono">5</span> (1 KAR = 5 SAK), konversi2 = <span className="font-mono">50</span> (1 SAK = 50 KG).</span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">jenis</span>
+                <span className="text-dark-400">Kategori barang, boleh kosong. Contoh: <span className="font-mono">SEMBAKO</span></span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">stokmin</span>
+                <span className="text-dark-400">Stok minimum untuk notifikasi. Jika tidak tahu, isi <span className="font-mono">0</span>.</span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">hargabeli hargajual</span>
+                <span className="text-dark-400">Boleh dikosongkan. Isi angka tanpa titik/koma, contoh: <span className="font-mono">12500</span></span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowTemplateInfo(false)}
+                className="px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+                Batal
+              </button>
+              <button onClick={() => { setShowTemplateInfo(false); downloadFile('/impor/barang/template', 'barang-template.csv'); }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors">
+                <FileText className="w-3.5 h-3.5" /> Unduh Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

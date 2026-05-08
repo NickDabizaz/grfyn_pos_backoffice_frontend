@@ -37,11 +37,12 @@ const handleImport = (url, onSuccess) => {
 };
 
 export default function Customer({ isActive }) {
-  const [data, setData] = useState([]);
-  const [search, setSearch] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const openTab = useTabStore((s) => s.openTab);
-  const confirm = useConfirm();
+  const [data, setData]                         = useState([]);
+  const [search, setSearch]                     = useState('');
+  const [refreshing, setRefreshing]             = useState(false);
+  const [showTemplateInfo, setShowTemplateInfo] = useState(false);
+  const openTab                                 = useTabStore((s) => s.openTab);
+  const confirm                                 = useConfirm();
 
   const load = useCallback(async () => {
     const { data: res } = await api.get('/customer');
@@ -91,8 +92,8 @@ export default function Customer({ isActive }) {
           <button onClick={() => downloadFile('/impor/customer/export', 'customer-export.csv')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Download className="w-3.5 h-3.5" /> Export
           </button>
-          <button onClick={() => downloadFile('/impor/customer/template', 'customer-template.csv')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
-            <FileText className="w-3.5 h-3.5" /> Template
+          <button onClick={() => setShowTemplateInfo(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+            <FileText className="w-3.5 h-3.5" /> Unduh Template
           </button>
           <button onClick={() => handleImport('/impor/customer/import', load)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Upload className="w-3.5 h-3.5" /> Import
@@ -141,6 +142,39 @@ export default function Customer({ isActive }) {
           <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
       </div>
+
+      {showTemplateInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowTemplateInfo(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-dark-500 mb-1">Panduan Isi Template Customer</h3>
+            <p className="text-xs text-dark-300 mb-4">Pastikan format CSV sudah sesuai sebelum import.</p>
+            <div className="space-y-2 text-sm">
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">namacustomer</span>
+                <span className="text-dark-400"><span className="text-red-500 font-semibold">Wajib.</span> Nama customer, contoh: <span className="font-mono">TOKO MAJU JAYA</span></span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">alamat</span>
+                <span className="text-dark-400">Boleh kosong. Contoh: <span className="font-mono">JL. MERDEKA NO. 5</span></span>
+              </div>
+              <div className="flex gap-3 p-3 rounded-xl bg-warm-50 border border-primary-50">
+                <span className="font-mono font-semibold text-primary-600 w-32 shrink-0">hp</span>
+                <span className="text-dark-400">Boleh kosong. Nomor HP tanpa spasi, contoh: <span className="font-mono">081234567890</span></span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowTemplateInfo(false)}
+                className="px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
+                Batal
+              </button>
+              <button onClick={() => { setShowTemplateInfo(false); downloadFile('/impor/customer/template', 'customer-template.csv'); }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors">
+                <FileText className="w-3.5 h-3.5" /> Unduh Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

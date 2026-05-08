@@ -54,7 +54,7 @@ export default function LokasiForm({ id, lokasi: existingLokasi, onSuccess, tabI
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Kode Lokasi *</label>
-              <input value={kodelokasi} onChange={(e) => setKodelokasi(e.target.value.toUpperCase())} className={inputClass} disabled={isEdit} placeholder="GRF01" />
+              <input value={kodelokasi} onChange={(e) => setKodelokasi(e.target.value.toUpperCase())} className={inputClass} placeholder="01" />
             </div>
             <div>
               <label className={labelClass}>Nama Lokasi *</label>

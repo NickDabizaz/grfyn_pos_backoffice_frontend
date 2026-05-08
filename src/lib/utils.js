@@ -1,6 +1,11 @@
+// export function formatRupiah(num) {
+//   if (num == null || isNaN(num)) return 'Rp 0';
+//   return 'Rp ' + Number(num).toLocaleString('id-ID');
+// }
+
 export function formatRupiah(num) {
   if (num == null || isNaN(num)) return 'Rp 0';
-  return 'Rp ' + Number(num).toLocaleString('id-ID');
+  return '' + Number(num).toLocaleString('id-ID');
 }
 
 export function formatDate(date) {
