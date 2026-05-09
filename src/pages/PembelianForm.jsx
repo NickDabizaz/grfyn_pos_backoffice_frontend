@@ -259,7 +259,8 @@ function getSatuanOptions(item) {
 }
 
 function getDefaultSatuan(b) {
-  return b.satuanbesar || b.satuansedang || b.satuankecil || '';
+  const s = [b.satuanbesar, b.satuansedang, b.satuankecil].find(v => v && String(v).trim());
+  return s ? String(s).trim() : 'PCS';
 }
 
 function isJmlValid(val) {
@@ -390,7 +391,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
           idbarang: i.idbarang,
           jml:      i.jml,
           harga:    i.harga,
-          satuan:   i.satuan,
+          satuan:   i.satuan && String(i.satuan).trim() ? String(i.satuan).trim() : 'PCS',
           ppn_mode: i.ppn_mode,
         })),
       };

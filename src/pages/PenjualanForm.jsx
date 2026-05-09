@@ -240,7 +240,8 @@ function getSatuanOptions(item) {
 }
 
 function getDefaultSatuan(b) {
-  return b.satuanbesar || b.satuansedang || b.satuankecil || '';
+  const s = [b.satuanbesar, b.satuansedang, b.satuankecil].find(v => v && String(v).trim());
+  return s ? String(s).trim() : 'PCS';
 }
 
 function isJmlValid(val) {
@@ -333,10 +334,11 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
 
   const computedItems = items.map(item => {
     const jml    = parseFloat(item.jml) || 0;
+    const satuan = item.satuan;
     const base   = item.harga * jml;
     const diskonAmt = item.diskon ? (base * item.diskon) / 100 : 0;
     const ppnAmt = item.ppn_mode === 'INCLUDE' ? ((base - diskonAmt) * ppnPercent) / 100 : 0;
-    return { ...item, jml, diskonAmt, ppnAmt, subtotal: base - diskonAmt + ppnAmt };
+    return { ...item, jml, satuan, diskonAmt, ppnAmt, subtotal: base - diskonAmt + ppnAmt };
   });
 
   const totalPpn    = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
@@ -374,6 +376,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           jml:      i.jml,
           harga:    i.harga,
           diskon:   i.diskon || 0,
+          satuan:   i.satuan && String(i.satuan).trim() ? String(i.satuan).trim() : 'PCS',
         })),
       };
 
