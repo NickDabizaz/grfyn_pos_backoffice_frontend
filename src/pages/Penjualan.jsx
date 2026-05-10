@@ -73,8 +73,9 @@ ${items.map((item, i) => `<tr>
 }
 
 export default function Penjualan({ isActive }) {
-  const user    = useAuthStore(s => s.user);
-  const openTab = useTabStore(s => s.openTab);
+  const user            = useAuthStore(s => s.user);
+  const openTab         = useTabStore(s => s.openTab);
+  const openOrFocusTab  = useTabStore(s => s.openOrFocusTab);
 
   const [jual, setJual]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -111,7 +112,7 @@ export default function Penjualan({ isActive }) {
   };
 
   const handleTambah = () => {
-    openTab({ label: 'Penjualan Baru', icon: Plus, component: PenjualanForm, props: { onSuccess: loadJual }, type: 'form_add' });
+    openOrFocusTab({ label: 'Penjualan Baru', icon: Plus, component: PenjualanForm, props: { onSuccess: loadJual }, type: 'form_add', kodemenu: 'penjualan-add' });
   };
 
   const handleEdit = async (j) => {
@@ -127,12 +128,13 @@ export default function Penjualan({ isActive }) {
         }
       }
       const { data } = await api.get(`/jual/${j.idjual}`);
-      openTab({
+      openOrFocusTab({
         label: `Edit ${j.kodejual}`,
         icon: Pencil,
         component: PenjualanForm,
         props: { onSuccess: loadJual, editData: data },
         type: 'form_edit',
+        kodemenu: `penjualan-edit-${j.idjual}`,
       });
     } catch {
       toast.error('Gagal memuat data penjualan');
@@ -321,9 +323,13 @@ export default function Penjualan({ isActive }) {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{j.jenis || 'JUAL'}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`badge badge-sm ${j.status === 'VOID' ? 'badge-error' : j.status === 'LUNAS' ? 'badge-info' : 'badge-success'}`}>
-                          {j.status}
-                        </span>
+                        {j.status === 'VOID' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">VOID</span>
+                        ) : j.status === 'LUNAS' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">LUNAS</span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">{j.status}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {j.status !== 'VOID' && (

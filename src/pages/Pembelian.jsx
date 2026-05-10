@@ -73,8 +73,9 @@ ${items.map((item, i) => `<tr>
 
 // ─── Main Component ───────────────────────────────────────────────
 export default function Pembelian({ isActive }) {
-  const user    = useAuthStore(s => s.user);
-  const openTab = useTabStore(s => s.openTab);
+  const user          = useAuthStore(s => s.user);
+  const openTab       = useTabStore(s => s.openTab);
+  const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
 
   const [beli, setBeli]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -112,19 +113,20 @@ export default function Pembelian({ isActive }) {
   };
 
   const handleTambah = () => {
-    openTab({ label: 'Pembelian Baru', icon: Plus, component: PembelianForm, props: { onSuccess: loadBeli }, type: 'form_add' });
+    openOrFocusTab({ label: 'Pembelian Baru', icon: Plus, component: PembelianForm, props: { onSuccess: loadBeli }, type: 'form_add', kodemenu: 'pembelian-add' });
   };
 
   const handleEdit = async (b) => {
     if (b.status === 'VOID') return toast.error('Pembelian VOID tidak dapat diedit');
     try {
       const { data } = await api.get(`/beli/${b.idbeli}`);
-      openTab({
+      openOrFocusTab({
         label: `Edit ${b.kodebeli}`,
         icon: Pencil,
         component: PembelianForm,
         props: { onSuccess: loadBeli, editData: data },
         type: 'form_edit',
+        kodemenu: `pembelian-edit-${b.idbeli}`,
       });
     } catch {
       toast.error('Gagal memuat data pembelian');
@@ -308,11 +310,13 @@ export default function Pembelian({ isActive }) {
                       <td className="px-4 py-3 text-dark-400 text-xs">{b.namalokasi || '-'}</td>
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(b.grandtotal)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                          b.status === 'VOID' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
-                        }`}>
-                          {b.status === 'VOID' ? 'VOID' : 'AKTIF'}
-                        </span>
+                        {b.status === 'VOID' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">VOID</span>
+                        ) : b.statuslunas === 'LUNAS' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">LUNAS</span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">BELUM LUNAS</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {b.status !== 'VOID' && (

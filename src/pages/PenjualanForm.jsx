@@ -7,7 +7,7 @@ import { ArrowLeft, Search, Trash2, MapPin, Users, Plus, Printer } from 'lucide-
 import useTabStore from '../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseCustomerModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid } from '../lib/formHelpers';
+import { BrowseCustomerModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../lib/formHelpers';
 
 function printFaktur(data, user) {
   const items = data.items || [];
@@ -166,9 +166,9 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           konversi1:    item.konversi1    || 0,
           konversi2:    item.konversi2    || 0,
           satuan:       item.satuan || getDefaultSatuan(item),
-          jml:          Number(item.jml),
-          harga:        parseFloat(item.harga) || 0,
-          diskon:       parseFloat(item.diskon) || 0,
+          jml:          String(item.jml),
+          harga:        String(parseFloat(item.harga) || 0),
+          diskon:       String(parseFloat(item.diskon) || 0),
           ppn_mode:     item.ppn > 0 ? 'INCLUDE' : 'TIDAK_PAKAI',
         }))
       : []
@@ -198,8 +198,8 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
       konversi2:    b.konversi2    || 0,
       satuan:       getDefaultSatuan(b),
       jml:          '1',
-      harga:        hargaJual,
-      diskon:       0,
+      harga:        String(hargaJual || ''),
+      diskon:       '0',
       ppn_mode:     defaultPpnMode,
     }]);
     setShowBarangModal(false);
@@ -215,11 +215,13 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
 
   const computedItems = items.map(item => {
     const jml    = parseFloat(item.jml) || 0;
+    const harga  = parseFloatVal(item.harga);
     const satuan = item.satuan;
-    const base   = item.harga * jml;
-    const diskonAmt = item.diskon ? (base * item.diskon) / 100 : 0;
+    const diskon = parseFloatVal(item.diskon);
+    const base   = harga * jml;
+    const diskonAmt = diskon ? (base * diskon) / 100 : 0;
     const ppnAmt = item.ppn_mode === 'INCLUDE' ? ((base - diskonAmt) * ppnPercent) / 100 : 0;
-    return { ...item, jml, satuan, diskonAmt, ppnAmt, subtotal: base - diskonAmt + ppnAmt };
+    return { ...item, jml, harga, satuan, diskon, diskonAmt, ppnAmt, subtotal: base - diskonAmt + ppnAmt };
   });
 
   const totalPpn    = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
@@ -477,14 +479,20 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                             }`} />
                         </td>
                         <td className="px-3 py-2.5">
-                          <input type="number" min="0" value={item.harga}
-                            onChange={e => updateItem(idx, 'harga', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
+                          <input type="text" value={rawItem.harga}
+                            onChange={e => updateItem(idx, 'harga', e.target.value)}
+                            placeholder="0"
+                            className={`w-full px-2 py-1.5 rounded-lg border text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20 ${
+                              rawItem.harga && !isFloatValid(rawItem.harga) ? 'border-red-300 bg-red-50 text-red-700' : 'border-primary-100'
+                            }`} />
                         </td>
                         <td className="px-3 py-2.5">
-                          <input type="number" min="0" max="100" value={item.diskon}
-                            onChange={e => updateItem(idx, 'diskon', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
+                          <input type="text" value={rawItem.diskon}
+                            onChange={e => updateItem(idx, 'diskon', e.target.value)}
+                            placeholder="0"
+                            className={`w-full px-2 py-1.5 rounded-lg border text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20 ${
+                              rawItem.diskon && !isFloatValid(rawItem.diskon) ? 'border-red-300 bg-red-50 text-red-700' : 'border-primary-100'
+                            }`} />
                         </td>
                         <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-dark-500">
                           {formatRupiah(item.subtotal)}

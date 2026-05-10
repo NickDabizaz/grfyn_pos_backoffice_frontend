@@ -114,6 +114,8 @@ export function BrowseLokasiModal({ onSelect, onClose }) {
 export function PpnDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const btnRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
 
   useEffect(() => {
     function handleClick(e) {
@@ -123,12 +125,24 @@ export function PpnDropdown({ value, onChange }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  useEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        minWidth: rect.width,
+      });
+    }
+  }, [open]);
+
   const isInclude = value === 'INCLUDE';
 
   return (
-    <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        className={`flex items-center justify-between gap-1.5 w-full px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+    <div ref={ref}>
+      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center justify-between gap-1.5 w-full px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
           isInclude
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
             : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
@@ -137,19 +151,19 @@ export function PpnDropdown({ value, onChange }) {
           <span className={`w-1.5 h-1.5 rounded-full ${isInclude ? 'bg-emerald-500' : 'bg-red-500'}`} />
           {isInclude ? 'INCLUDE' : 'TIDAK'}
         </span>
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 left-0 right-0 bg-white rounded-xl border border-primary-100 shadow-lg min-w-[130px]">
+        <div style={dropdownStyle} className="z-[100] bg-white rounded-xl border border-primary-100 shadow-xl overflow-hidden">
           <button type="button" onClick={() => { onChange('INCLUDE'); setOpen(false); }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors first:rounded-t-xl ${
+            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
               isInclude ? 'bg-emerald-50 text-emerald-700' : 'text-dark-500 hover:bg-emerald-50 hover:text-emerald-700'
             }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> INCLUDE
           </button>
           <button type="button" onClick={() => { onChange('TIDAK_PAKAI'); setOpen(false); }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors last:rounded-b-xl ${
+            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
               !isInclude ? 'bg-red-50 text-red-700' : 'text-dark-500 hover:bg-red-50 hover:text-red-700'
             }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> TIDAK
@@ -178,4 +192,13 @@ export function getDefaultSatuan(b) {
 export function isJmlValid(val) {
   const s = String(val).trim();
   return s !== '' && /^\d+$/.test(s) && parseInt(s, 10) > 0;
+}
+
+export function isFloatValid(val) {
+  const s = String(val).trim();
+  return s !== '' && /^\d+([.,]\d+)?$/.test(s) && parseFloat(s.replace(',', '.')) > 0;
+}
+
+export function parseFloatVal(val) {
+  return parseFloat(String(val).trim().replace(',', '.')) || 0;
 }
