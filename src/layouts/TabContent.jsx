@@ -1,5 +1,16 @@
-import { Component } from 'react';
+import { Component, Suspense } from 'react';
 import useTabStore from '../store/tabStore';
+
+function TabSkeleton() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-4 border-primary-200 border-t-primary-500 animate-spin" />
+        <p className="text-sm text-dark-300">Memuat halaman…</p>
+      </div>
+    </div>
+  );
+}
 
 export default function TabContent() {
   const { tabs, activeTabId, updateTabState } = useTabStore();
@@ -7,7 +18,7 @@ export default function TabContent() {
   return (
     <div className="flex-1 overflow-auto">
       {tabs.map(tab => {
-        const isActive = tab.id === activeTabId;
+        const isActive     = tab.id === activeTabId;
         const TabComponent = tab.component;
 
         return (
@@ -17,13 +28,15 @@ export default function TabContent() {
             className="h-full flex-col"
           >
             <ErrorBoundary tab={tab}>
-              <TabComponent
-                {...tab.props}
-                tabId={tab.id}
-                isActive={isActive}
-                tabState={tab.state}
-                updateTabState={(partial) => updateTabState(tab.id, partial)}
-              />
+              <Suspense fallback={<TabSkeleton />}>
+                <TabComponent
+                  {...tab.props}
+                  tabId={tab.id}
+                  isActive={isActive}
+                  tabState={tab.state}
+                  updateTabState={(partial) => updateTabState(tab.id, partial)}
+                />
+              </Suspense>
             </ErrorBoundary>
           </div>
         );

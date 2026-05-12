@@ -8,66 +8,72 @@ Dokumen ini berisi rencana taktis untuk pembaruan, optimasi, dan penambahan fitu
 ## Fase 1: Optimasi Performa & Kualitas Kode (High Priority)
 Fase ini berfokus pada perbaikan arsitektur dasar agar aplikasi lebih ringan, cepat, dan terhindar dari *memory leak*.
 
-- [ ] **1.1 Migrasi ke TanStack Query (React Query)**
-  - **Berkas Terkait:** `useCrudApi.js`, Komponen Data Grid/Form.
-  - **Tindakan:** Mengganti custom hook fetcher berbasis `useState` dengan TanStack Query.
-  - **Tujuan:** Mengimplementasikan *caching* otomatis, mencegah re-fetching data yang sama saat user berpindah antar tab (Grid <-> Form), dan membuat perpindahan tab terasa instan.
+- [x] **1.1 Migrasi ke TanStack Query (React Query)**
+  - **Berkas Terkait:** `useCrudApi.js`, `main.jsx`
+  - **Tindakan:** Menginstall `@tanstack/react-query`. Membungkus app dengan `QueryClientProvider` (staleTime 5 menit, gcTime 10 menit). Menambahkan `useQueryData()` dan `useMutateData()` ke `useCrudApi.js` sebagai hooks baru di atas fungsi imperatif lama — backward-compatible.
+  - **Tujuan:** Caching otomatis aktif; tab Grid ↔ Form tidak re-fetch hingga cache stale.
 
-- [ ] **1.2 Optimasi Render Katalog Produk (Stok Map O(1))**
-  - **Berkas Terkait:** `ProductCatalog.jsx`
-  - **Tindakan:** Mengubah pengambilan data stok (`getStock(p.idbarang)`) di dalam loop render `.map()` yang memakan waktu (jika datanya besar) menjadi struktur *Hash Map* atau objek kamus.
-  - **Tujuan:** Menghilangkan *bottleneck* performa saat me-render ratusan/ribuan produk.
+- [x] **1.2 Optimasi Render Katalog Produk (Stok Map O(1))**
+  - **Berkas Terkait:** `PosLayout.jsx`
+  - **Tindakan:** Mengganti `stockData.find()` di dalam `getStock()` dengan `useMemo` yang membangun hash-map `{ idbarang: stok }` sekali saat `stockData` berubah. Lookup menjadi O(1).
+  - **Tujuan:** Bottleneck render katalog ratusan/ribuan produk dieliminasi.
 
-- [ ] **1.3 Perbaikan Logika Barcode Scanner (Bypass Debounce)**
-  - **Berkas Terkait:** `ProductCatalog.jsx` (Handler `onKeyDown`).
-  - **Tindakan:** Membuat custom hook `useBarcodeScanner` yang mengidentifikasi kecepatan input (biasanya <30ms antar huruf) untuk membedakan antara input ketikan manusia dan input dari alat scanner.
-  - **Tujuan:** Memastikan item otomatis masuk keranjang dengan presisi tinggi saat di-scan tanpa terhalang *debounce* 300ms dari kolom pencarian.
+- [x] **1.3 Perbaikan Logika Barcode Scanner (Bypass Debounce)**
+  - **Berkas Terkait:** `hooks/useBarcodeScanner.js`, `ProductCatalog.jsx`
+  - **Tindakan:** Membuat hook `useBarcodeScanner` yang mendeteksi kecepatan keystroke (<30ms = scanner). Scanner input di-flush ke callback tanpa melewati debounce 300ms. `ProductCatalog` langsung fetch & add item ke keranjang.
+  - **Tujuan:** Scan barcode instan, tidak terhalang debounce pencarian.
 
-- [ ] **1.4 Manajemen Memori Tab (Anti-Memory Leak)**
-  - **Berkas Terkait:** `tabStore.js`, `TabContainer.jsx`
-  - **Tindakan:** Menerapkan strategi *Lazy Loading* (`React.lazy`) untuk form/komponen berat di dalam tab. Menambahkan fitur *auto-close* peringatan jika jumlah tab terbuka melebihi kapasitas memori yang disarankan (misal: > 15 tab).
-  - **Tujuan:** Mencegah *browser crash* jika kasir membuka banyak menu seharian.
+- [x] **1.4 Manajemen Memori Tab (Anti-Memory Leak)**
+  - **Berkas Terkait:** `tabStore.js`, `TabContent.jsx`, `TabBar.jsx`, `pageRegistry.jsx`
+  - **Tindakan:** Semua komponen halaman di-`React.lazy()` di `pageRegistry.jsx`. `TabContent` dibungkus `<Suspense>` dengan skeleton loader. `tabStore` melacak `showMemoryWarning` — aktif saat tab ≥ 15. Banner peringatan tampil di `TabBar`.
+  - **Tujuan:** Bundle split per halaman; peringatan mencegah crash browser akibat tab berlebihan.
 
-- [ ] **1.5 Penanganan Token & Sesi (Silent Refresh)**
-  - **Berkas Terkait:** `api/axios.js`
-  - **Tindakan:** Memodifikasi respon *interceptor* `401 Unauthorized`. Jangan langsung men-tendang (*redirect*) user ke `/login` yang mereset state tab. Buat logika untuk mencoba `Refresh Token` di latar belakang, atau tampilkan *modal login overlay* di atas tab aktif.
-  - **Tujuan:** Menyelamatkan data pekerjaan kasir/admin yang belum di-save saat sesi habis.
+- [x] **1.5 Penanganan Token & Sesi (Silent Refresh)**
+  - **Berkas Terkait:** `api/axios.js`, `store/authModalStore.js`, `components/ui/LoginOverlay.jsx`, `layouts/MainLayout.jsx`
+  - **Tindakan:** Interceptor 401 tidak lagi redirect ke `/login`. Alih-alih, ia memanggil `authModalStore.show()` yang memunculkan `LoginOverlay` — form login floating di atas workspace aktif.
+  - **Tujuan:** Data pekerjaan kasir/admin tidak hilang saat sesi habis.
 
 ---
 
 ## Fase 2: Penambahan Fitur Bisnis & UX Kasir
 Fase ini berfokus pada kemudahan operasional (kecepatan transaksi) dan keandalan sistem dalam berbagai kondisi toko.
 
-- [ ] **2.1 Global Keyboard Shortcuts (Hotkeys Kasir)**
-  - **Tindakan:** Mengimplementasikan library (seperti `react-hotkeys-hook`) untuk meminimalkan penggunaan mouse.
-  - **Mapping Usulan:**
+- [x] **2.1 Global Keyboard Shortcuts (Hotkeys Kasir)**
+  - **Berkas Terkait:** `PosLayout.jsx`, `CartSidebar.jsx`
+  - **Mapping Implementasi:**
     - `F1`: Fokus input pencarian/scan barang.
-    - `F2`: Ubah Qty barang terakhir di keranjang.
-    - `F4`: Buka laci kasir manual.
-    - `Space / F12`: Lanjutkan ke Modal Pembayaran (*Checkout*).
-  - **Tujuan:** Mempercepat antrian kasir dengan pengalaman transaksi *keyboard-only*.
+    - `F2`: Fokus input qty barang terakhir di keranjang (field `<input id="qty-input-{id}">`).
+    - `F4`: Kirim pulse ESC/POS ke printer untuk membuka laci kasir.
+    - `F12`: Buka Modal Pembayaran.
+    - `Escape`: Tutup modal.
+  - **Tujuan:** Kasir bisa bertransaksi sepenuhnya via keyboard.
 
-- [ ] **2.2 Fitur "Hold / Suspend" Transaksi (Simpan Bon)**
-  - **Tindakan:** Menambahkan tombol "Tahan" (Hold) dan "Panggil" (Recall) Transaksi.
-  - **Tujuan:** Jika pelanggan A lupa bawa dompet atau mau ambil barang lagi, kasir bisa menyimpan keranjang pelanggan A sementara waktu dan melayani pelanggan B di belakangnya, lalu memanggil kembali data pelanggan A nantinya.
+- [x] **2.2 Fitur "Hold / Suspend" Transaksi (Simpan Bon)**
+  - **Berkas Terkait:** `store/cartStore.js`, `pages/pos/HoldRecallModal.jsx`, `PosLayout.jsx`
+  - **Tindakan:** `cartStore` memiliki `heldCarts[]`, `holdCart(label)`, `recallCart(id)`, `deleteHeld(id)`. Tombol "Tahan/Panggil" dengan badge counter di header POS. Modal menampilkan daftar keranjang yang ditahan beserta total dan label.
+  - **Tujuan:** Kasir dapat menangani beberapa pelanggan secara bergantian.
 
-- [ ] **2.3 Offline Tolerance (PWA & Background Sync)**
-  - **Tindakan:** Mengubah aplikasi menjadi PWA dan menggunakan `IndexedDB` (bisa lewat `idb` atau `Dexie`). 
-  - **Tujuan:** Transaksi kasir tidak akan gagal/hilang meskipun koneksi internet atau LAN server mati mendadak. Transaksi disimpan di browser dan otomatis dikirim (sinkronisasi) saat online kembali.
+- [x] **2.3 Offline Tolerance (PWA & Background Sync)**
+  - **Berkas Terkait:** `vite.config.js`, `lib/offlineDb.js`, `hooks/useOfflineSync.js`, `PaymentModal.jsx`, `PosLayout.jsx`
+  - **Tindakan:** Mengaktifkan `vite-plugin-pwa` dengan Workbox (NetworkFirst untuk endpoint baca). Skema Dexie `outbox` menyimpan transaksi pending. `PaymentModal` memeriksa `navigator.onLine`; jika offline, enqueue transaksi. `useOfflineSync` mendengar event `online` dan flush outbox otomatis.
+  - **Tujuan:** Transaksi tidak gagal/hilang saat koneksi putus.
 
-- [ ] **2.4 Audio Feedback (Scanner Suara)**
-  - **Tindakan:** Menambahkan *event trigger* untuk memutar file audio MP3/WAV ringan berukuran kecil (Beep).
-  - **Tujuan:** Beep sukses jika scan berhasil, Buzzer error jika scan gagal/stok habis. Memudahkan kasir agar tidak harus melihat layar setiap kali memindai barang.
+- [x] **2.4 Audio Feedback (Scanner Suara)**
+  - **Berkas Terkait:** `hooks/useAudioFeedback.js`, `ProductCatalog.jsx`
+  - **Tindakan:** Hook `useAudioFeedback` menggunakan Web Audio API (tanpa file audio eksternal). `beepSuccess()` = nada pendek 1200 Hz, `beepError()` = dua buzz rendah 220 Hz. Dipanggil di `ProductCatalog` saat item berhasil/gagal ditambahkan.
+  - **Tujuan:** Umpan balik audio instan — kasir tidak perlu melihat layar setiap scan.
 
-- [ ] **2.5 Persistensi Workspace ERP (Tab Recovery)**
-  - **Tindakan:** Menambahkan *middleware* `persist` dari Zustand pada file `tabStore.js`.
-  - **Tujuan:** Jika browser tidak sengaja tertutup atau ter-refresh, semua tab (Master Barang, Laporan, dll) yang sebelumnya terbuka akan kembali utuh.
+- [x] **2.5 Persistensi Workspace ERP (Tab Recovery)**
+  - **Berkas Terkait:** `store/tabStore.js`
+  - **Tindakan:** Menambahkan middleware `persist` dari Zustand dengan `sessionStorage`. Hanya data ringan (kodemenu, label, state) yang disimpan — komponen React tidak diserialisasi. Pada hydration, `onRehydrateStorage` me-re-attach komponen dari `pageRegistry`.
+  - **Tujuan:** Tab terbuka kembali utuh setelah browser refresh.
 
-- [ ] **2.6 Varian Level Harga Pelanggan (Grosir/VIP)**
-  - **Tindakan:** Menambahkan logika pemilih tipe harga di komponen produk/keranjang.
-  - **Tujuan:** Mendukung model bisnis yang membedakan harga eceran dan harga grosir secara otomatis berdasarkan pelanggan yang dipilih.
+- [x] **2.6 Varian Level Harga Pelanggan (Grosir/VIP)**
+  - **Berkas Terkait:** `store/cartStore.js`, `pages/pos/CartSidebar.jsx`
+  - **Tindakan:** `cartStore` memiliki `priceLevel` (ECERAN/GROSIR) dan `setPriceLevel`. `addItem` menggunakan `hargajual_grosir` saat level GROSIR, fallback ke `hargajual_terbaru`. `CartSidebar` menampilkan toggle Eceran/Grosir; saat pelanggan dipilih, level otomatis disesuaikan jika `customer.tipe_harga` tersedia.
+  - **Tujuan:** Mendukung harga eceran dan grosir secara otomatis per pelanggan.
 
 ---
 
 ## Status Progres
-> Gunakan file ini sebagai panduan atau *checklist* harian di repositori (contoh: diunggah ke Github Project/Trello/Notion). Centang `[x]` saat tugas telah selesai.
+> Semua item Fase 1 dan Fase 2 telah selesai diimplementasikan pada branch `claude/plan-refactor-I0IhK`.

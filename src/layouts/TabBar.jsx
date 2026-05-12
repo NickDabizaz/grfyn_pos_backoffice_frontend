@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import useTabStore from '../store/tabStore';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 
 export default function TabBar() {
-  const { tabs, activeTabId, setActiveTab, closeTab } = useTabStore();
+  const { tabs, activeTabId, setActiveTab, closeTab, showMemoryWarning, dismissMemoryWarning } = useTabStore();
   const [contextMenu, setContextMenu] = useState(null);
   const menuRef = useRef(null);
 
@@ -30,7 +30,22 @@ export default function TabBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex items-center bg-white border-b border-primary-100 overflow-x-auto scrollbar-thin shrink-0">
+    <div className="flex flex-col bg-white border-b border-primary-100 shrink-0">
+      {showMemoryWarning && (
+        <div className="flex items-center justify-between px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-700">
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            Anda membuka {tabs.length} tab. Pertimbangkan menutup tab yang tidak digunakan untuk menjaga performa browser.
+          </span>
+          <button
+            onClick={dismissMemoryWarning}
+            className="ml-4 px-2 py-0.5 rounded hover:bg-amber-100 text-amber-600 shrink-0"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+    <div className="flex items-center overflow-x-auto scrollbar-thin">
       {tabs.map(tab => {
         const isActive = tab.id === activeTabId;
         return (
@@ -88,6 +103,7 @@ export default function TabBar() {
           </button>
         </div>
       )}
+    </div>
     </div>
   );
 }

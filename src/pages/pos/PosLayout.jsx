@@ -2,20 +2,27 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api/axios';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, PauseCircle } from 'lucide-react';
 import TransactionHistory from './TransactionHistory';
 import ProductCatalog from './ProductCatalog';
 import CartSidebar from './CartSidebar';
 import PaymentModal from './PaymentModal';
+import HoldRecallModal from './HoldRecallModal';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { DEFAULT_PPN } from '../../lib/constants';
 
 export default function PosLayout() {
+  useOfflineSync();
+
   const [allProducts, setAllProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [jual, setJual] = useState([]);
   
-  const [showJualList, setShowJualList] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showJualList, setShowJualList]   = useState(false);
+  const [showPayment, setShowPayment]     = useState(false);
+  const [showHoldRecall, setShowHoldRecall] = useState(false);
+
+  const heldCarts = useCartStore((s) => s.heldCarts);
   
   const [usePpn, setUsePpn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,10 +64,14 @@ export default function PosLayout() {
     setRefreshing(false);
   };
 
-  const getStock = useCallback((idbarang) => {
-    const s = stockData.find((s) => s.idbarang === idbarang);
-    return s ? s.stok : 0;
+  // O(1) hash-map rebuild only when stockData changes
+  const stockMap = useMemo(() => {
+    const m = {};
+    stockData.forEach((s) => { m[s.idbarang] = s.stok; });
+    return m;
   }, [stockData]);
+
+  const getStock = useCallback((idbarang) => stockMap[idbarang] ?? 0, [stockMap]);
 
   // Kalkulasi total dengan useMemo dan presisi float (Math.round)
   const cartCalculations = useMemo(() => {
@@ -83,12 +94,38 @@ export default function PosLayout() {
     return { subtotal, ppnTotal, grandTotal };
   }, [items, usePpn, user?.ppn]);
 
-  // Shortcut Keyboard Global Kasir
+  // ── Shortcut Keyboard Global Kasir ──────────────────────────────────────
+  // F1 : fokus input pencarian
+  // F2 : edit qty barang terakhir di keranjang
+  // F4 : buka laci kasir (trigger via BrowserPrint / ESC/POS pulse)
+  // F12 / Space : buka modal pembayaran
+  // Escape : tutup modal
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Ignore if a modal input is focused to avoid swallowing typed chars
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) &&
+          e.key !== 'F1' && e.key !== 'F2' && e.key !== 'F4' && e.key !== 'F12') return;
+
       if (e.key === 'F1') {
         e.preventDefault();
         document.getElementById('pos-search-input')?.focus();
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        if (items.length > 0) {
+          const last = items[items.length - 1];
+          const input = document.getElementById(`qty-input-${last.idbarang}`);
+          input?.select();
+          input?.focus();
+        }
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        // Send cash-drawer open pulse via ESC/POS (requires compatible receipt printer)
+        try {
+          const esc = '\x1B\x40';        // ESC @ — init printer
+          const pulse = '\x1B\x70\x00\x19\xFA'; // ESC p 0 25 250 — pulse drawer
+          const blob = new Blob([esc + pulse], { type: 'application/octet-stream' });
+          window.open(URL.createObjectURL(blob), '_blank');
+        } catch { /* hardware not present — silently ignore */ }
       } else if (e.key === 'F12') {
         e.preventDefault();
         if (items.length > 0) setShowPayment(true);
@@ -98,7 +135,7 @@ export default function PosLayout() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items.length]);
+  }, [items]);
 
   return (
     <div className="space-y-4 mt-4 ms-4">
@@ -108,6 +145,18 @@ export default function PosLayout() {
           <p className="text-sm text-dark-300">Transaksi penjualan</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHoldRecall(true)}
+            className="relative flex items-center gap-1.5 px-4 py-2 rounded-xl border border-amber-200 text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+            title="Tahan / Panggil Transaksi"
+          >
+            <PauseCircle className="w-4 h-4" /> Tahan/Panggil
+            {heldCarts.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {heldCarts.length}
+              </span>
+            )}
+          </button>
           <button onClick={() => { setShowJualList(!showJualList); if (!showJualList) loadJual(); }}
             className="px-4 py-2 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             {showJualList ? 'Sembunyikan' : 'Riwayat'} Transaksi
@@ -142,13 +191,17 @@ export default function PosLayout() {
       </div>
 
       {showPayment && (
-        <PaymentModal 
-          setShowPayment={setShowPayment} 
-          usePpn={usePpn} 
+        <PaymentModal
+          setShowPayment={setShowPayment}
+          usePpn={usePpn}
           setUsePpn={setUsePpn}
           loadJual={loadJual}
           cartCalculations={cartCalculations}
         />
+      )}
+
+      {showHoldRecall && (
+        <HoldRecallModal onClose={() => setShowHoldRecall(false)} />
       )}
     </div>
   );

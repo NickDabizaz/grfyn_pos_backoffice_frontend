@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, WifiOff } from 'lucide-react';
 import { formatRupiah, today } from '../../lib/utils';
 import api from '../../api/axios';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import { enqueueTransaction } from '../../lib/offlineDb';
 import toast from 'react-hot-toast';
 import { DEFAULT_PPN } from '../../lib/constants';
 
@@ -26,20 +27,27 @@ export default function PaymentModal({ setShowPayment, usePpn, setUsePpn, loadJu
 
     try {
       const payload = {
-        idcustomer: customer?.idcustomer || 1, 
-        idkasir: user?.iduser, 
-        grandtotal: grandTotal, 
-        bayar: amount, 
-        kembali: amount - grandTotal,
-        useppn: usePpn,
-        items: items.map((item) => ({ 
-          idbarang: item.idbarang, 
-          jml: item.jml, 
-          harga: item.hargajual_terbaru || item.harga, 
-          diskon: item.diskon || 0 
+        idcustomer: customer?.idcustomer || 1,
+        idkasir   : user?.iduser,
+        grandtotal: grandTotal,
+        bayar     : amount,
+        kembali   : amount - grandTotal,
+        useppn    : usePpn,
+        items     : items.map((item) => ({
+          idbarang: item.idbarang,
+          jml     : item.jml,
+          harga   : item.hargajual_terbaru || item.harga,
+          diskon  : item.diskon || 0,
         })),
       };
-      
+
+      if (!navigator.onLine) {
+        await enqueueTransaction(payload);
+        toast.success('Mode offline: transaksi disimpan & akan dikirim otomatis saat online', { icon: '📶', duration: 5000 });
+        setShowPayment(false); setBayar(''); clearCart();
+        return;
+      }
+
       await api.post('/jual', payload);
       toast.success('Transaksi berhasil!');
       

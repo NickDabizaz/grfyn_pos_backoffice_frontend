@@ -19,9 +19,14 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('grfyn_token');
       localStorage.removeItem('grfyn_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+        // Already on auth page — just reject, no overlay needed
+        return Promise.reject(err);
       }
+      // Show overlay instead of hard redirect so open tabs are preserved
+      import('../store/authModalStore.js').then(({ useAuthModalStore }) => {
+        useAuthModalStore.getState().show();
+      });
     }
     return Promise.reject(err);
   }

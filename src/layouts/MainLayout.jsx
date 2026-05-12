@@ -6,6 +6,7 @@ import TabContent from './TabContent';
 import useTabStore from '../store/tabStore';
 import { useAuthStore } from '../store/authStore';
 import { openPageFromSidebar, DASHBOARD_KODE } from '../lib/pageRegistry.jsx';
+import LoginOverlay from '../components/ui/LoginOverlay';
 import api from '../api/axios';
 
 let dashboardOpened = false;
@@ -44,12 +45,15 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-surface">
-      <Sidebar onLogout={handleLogout} />
-      <div className="ml-64 flex-1 flex flex-col min-w-0">
-        <TabBar />
-        <TabContent />
+    <>
+      <div className="flex h-screen bg-surface">
+        <Sidebar onLogout={handleLogout} />
+        <div className="ml-64 flex-1 flex flex-col min-w-0">
+          <TabBar />
+          <TabContent />
+        </div>
       </div>
-    </div>
+      <LoginOverlay />
+    </>
   );
 }
