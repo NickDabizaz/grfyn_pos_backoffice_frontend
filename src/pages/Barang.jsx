@@ -138,9 +138,9 @@ export default function Barang({ isActive, tabState, updateTabState }) {
         </div>
       </div>
 
-      {warnings > 0 && (
+      {warnings.length > 0 && (
         <div className="flex items-center gap-2 mx-6 mb-2 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-          <AlertTriangle className="w-4 h-4" /> Ada {warnings} barang dengan harga jual di bawah harga beli!
+          <AlertTriangle className="w-4 h-4" /> Ada {warnings.length} barang dengan harga jual di bawah harga beli!
         </div>
       )}
 
@@ -174,7 +174,7 @@ export default function Barang({ isActive, tabState, updateTabState }) {
               <tbody>
                 {paginatedItems.map((b) => (
                   <>
-                  <tr key={b.idbarang} className="border-b border-primary-50/50 hover:bg-warm-50/30 transition-colors text-sm">
+                  <tr key={b.idbarang} className={`border-b border-primary-50/50 transition-colors text-sm ${b.hargajual_terbaru && b.hargabeli_terbaru && parseFloat(b.hargajual_terbaru) < parseFloat(b.hargabeli_terbaru) ? 'bg-red-100 hover:bg-red-150' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-3 py-3 text-xs font-mono text-dark-300">{b.kodebarang}</td>
                     <td className="px-3 py-3 font-medium text-dark-500">{b.namabarang}</td>
                     <td className="px-3 py-3 text-dark-400">{b.satuanbesar || '-'}</td>

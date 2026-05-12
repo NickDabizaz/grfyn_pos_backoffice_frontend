@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
  */
 export default function LoginOverlay() {
   const { visible, hide } = useAuthModalStore();
-  const setAuth           = useAuthStore((s) => s.setAuth);
+  const login             = useAuthStore((s) => s.login);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -24,10 +24,8 @@ export default function LoginOverlay() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login', { username, password });
-      localStorage.setItem('grfyn_token', data.token);
-      localStorage.setItem('grfyn_user', JSON.stringify(data.user));
-      setAuth(data.token, data.user, data.lokasi);
+      const { data } = await api.post('/auth/login', { username, pass: password });
+      login(data.token, data.user, data.lokasi);
       toast.success('Sesi dipulihkan');
       hide();
       setUsername('');
