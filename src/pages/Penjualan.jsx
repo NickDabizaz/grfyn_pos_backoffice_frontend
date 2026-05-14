@@ -11,6 +11,7 @@ import PenjualanForm from './PenjualanForm';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseCustomerModal, BrowseLokasiModal } from '../lib/formHelpers';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 function printFaktur(data, user) {
   const items = data.items || [];
@@ -76,6 +77,7 @@ export default function Penjualan({ isActive }) {
   const user            = useAuthStore(s => s.user);
   const openTab         = useTabStore(s => s.openTab);
   const openOrFocusTab  = useTabStore(s => s.openOrFocusTab);
+  const confirm = useConfirm();
 
   const [jual, setJual]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -156,7 +158,14 @@ export default function Penjualan({ isActive }) {
         }
       }
     } catch {}
-    if (!confirm('Batalkan penjualan ini? Stok akan dikembalikan.')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Penjualan',
+      message: 'Batalkan penjualan ini? Stok akan dikembalikan.',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/jual/${id}/cancel`);
       toast.success('Penjualan dibatalkan');
@@ -178,6 +187,11 @@ export default function Penjualan({ isActive }) {
   };
 
   const selectedRow = jual.find(j => j.idjual === selectedId);
+  const formatJenisJual = (row) => {
+    if (row.jenis === 'POS') return 'JUAL';
+    if (row.jenis === 'JUAL' && row.status === 'LUNAS') return 'JUAL LUNAS';
+    return row.jenis || 'JUAL';
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -320,7 +334,7 @@ export default function Penjualan({ isActive }) {
                       <td className="px-4 py-3 text-dark-400 text-xs">{j.namalokasi || '-'}</td>
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(j.grandtotal)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{j.jenis || 'JUAL'}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{formatJenisJual(j)}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         {j.status === 'VOID' ? (

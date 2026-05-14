@@ -74,7 +74,8 @@ function BrowseBarangModal({ onSelect, onClose }) {
   const [search, setSearch] = useState('');
   useEffect(() => {
     const t = setTimeout(() => {
-      const params = search ? { search } : {};
+      const params = { excludeJenis: 'BAHAN BAKU' };
+      if (search) params.search = search;
       api.get('/barang/browse-barang', { params }).then(r => setBarangList(search ? r.data : r.data.slice(0, 10)));
     }, search ? 300 : 0);
     return () => clearTimeout(t);
@@ -236,6 +237,8 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
 
   const handleSubmit = async (shouldPrint = false) => {
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
+    if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
+    if (!customer?.idcustomer) return toast.error('Customer wajib dipilih');
 
     const parsedItems = items.map(i => {
       const n = Number(i.jml);
@@ -253,12 +256,12 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
       const payload = {
         kodejual:    autoGenerate ? null : kodejual.trim(),
         tgltrans,
-        idcustomer:  customer?.idcustomer || null,
-        idlokasi:    lokasi?.idlokasi     || null,
-        jenis:       'JUAL',
+        idcustomer:  customer.idcustomer,
+        idlokasi:    lokasi.idlokasi,
+        jenis:       langsungLunas ? 'JUAL LUNAS' : 'JUAL',
         metodbayar,
         useppn:      true,
-        bayar:       grandTotal,
+        bayar:       langsungLunas ? grandTotal : 0,
         langsung_lunas: langsungLunas,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
@@ -289,7 +292,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
       }
 
       if (onSuccess) onSuccess();
-      closeTab(tabId);
+      if (!isEdit) closeTab(tabId);
     } catch (err) {
       console.log(err)
       toast.error(err.response?.data?.message || 'Gagal menyimpan');

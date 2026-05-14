@@ -3,11 +3,11 @@ import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Trash2, Users, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Users, Plus, Printer, MapPin } from 'lucide-react';
 import useTabStore from '../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseCustomerModal, isJmlValid } from '../lib/formHelpers';
+import { BrowseCustomerModal, BrowseLokasiModal, isJmlValid } from '../lib/formHelpers';
 
 function printNotaRetur(data, user) {
   const items = data.items || [];
@@ -126,10 +126,16 @@ function BrowseBarangModal({ onSelect, onClose }) {
 
 export default function ReturJualForm({ onSuccess, tabId, editData }) {
   const user     = useAuthStore(s => s.user);
+  const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab = useTabStore(s => s.closeTab);
   const isEdit   = !!editData;
 
   const [tgltrans, setTgltrans] = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [lokasi, setLokasi] = useState(
+    isEdit && editData.idlokasi
+      ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi }
+      : (lokasiAuth || null)
+  );
   const [customer, setCustomer] = useState(
     isEdit && editData.idcustomer
       ? { idcustomer: editData.idcustomer, kodecustomer: editData.kodecustomer, namacustomer: editData.namacustomer }
@@ -156,6 +162,7 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
   );
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showLokasiModal, setShowLokasiModal]     = useState(false);
   const [showBarangModal, setShowBarangModal]     = useState(false);
   const [showBarang2ndModal, setShowBarang2ndModal] = useState(false);
   const [barang2ndForIdx, setBarang2ndForIdx]     = useState(null);
@@ -199,6 +206,8 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
 
   const handleSubmit = async (shouldPrint = false) => {
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
+    if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
+    if (!customer?.idcustomer) return toast.error('Customer wajib dipilih');
 
     const invalidIdx = items.findIndex(i => !isJmlValid(i.jml));
     if (invalidIdx !== -1) {
@@ -215,7 +224,8 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
     try {
       const payload = {
         tgltrans,
-        idcustomer:  customer?.idcustomer || null,
+        idlokasi:    lokasi.idlokasi,
+        idcustomer:  customer.idcustomer,
         idjual:      idjualRef || null,
         kodejual:    kodejual || null,
         catatan:     catatan || null,
@@ -248,7 +258,7 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
       }
 
       if (onSuccess) onSuccess();
-      closeTab(tabId);
+      if (!isEdit) closeTab(tabId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
     } finally {
@@ -294,6 +304,20 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
                 <input type="text" value={kodejual} onChange={e => setKodejual(e.target.value.toUpperCase())}
                   placeholder="Masukkan kode jual..."
                   className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Lokasi</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
+                    <MapPin className="w-3.5 h-3.5 text-dark-300 shrink-0" />
+                    {lokasi ? <span className="text-dark-500">{lokasi.namalokasi}</span> : <span className="text-dark-300">Pilih Lokasi...</span>}
+                  </div>
+                  <button onClick={() => setShowLokasiModal(true)}
+                    className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
+                    Browse
+                  </button>
+                </div>
               </div>
 
               <div className="col-span-2">
@@ -468,6 +492,12 @@ export default function ReturJualForm({ onSuccess, tabId, editData }) {
         <BrowseCustomerModal
           onSelect={c => { setCustomer(c); setShowCustomerModal(false); }}
           onClose={() => setShowCustomerModal(false)}
+        />
+      )}
+      {showLokasiModal && (
+        <BrowseLokasiModal
+          onSelect={l => { setLokasi(l); setShowLokasiModal(false); }}
+          onClose={() => setShowLokasiModal(false)}
         />
       )}
       {showBarangModal && (

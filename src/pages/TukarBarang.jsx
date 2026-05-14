@@ -9,6 +9,7 @@ import Pagination from '../components/ui/Pagination';
 import useTabStore from '../store/tabStore';
 import TukarBarangForm from './TukarBarangForm';
 import { BrowseCustomerModal } from '../lib/formHelpers';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 function printNotaTukar(data, user) {
   const kembali = data.items_kembali || [];
@@ -70,6 +71,7 @@ ${baru.map((item, i) => `<tr>
 export default function TukarBarang({ isActive }) {
   const user    = useAuthStore(s => s.user);
   const openTab = useTabStore(s => s.openTab);
+  const confirm = useConfirm();
 
   const [tukar, setTukar]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -126,7 +128,14 @@ export default function TukarBarang({ isActive }) {
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
-    if (!confirm('Batalkan tukar barang ini? Stok akan dikembalikan seperti semula.')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Tukar Barang',
+      message: 'Batalkan tukar barang ini? Stok akan dikembalikan seperti semula.',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/tukarbarang/${id}/cancel`);
       toast.success('Tukar barang dibatalkan');

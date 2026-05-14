@@ -3,9 +3,9 @@ import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
 import { formatRupiah, today } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Trash2, Users, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Users, Plus, Printer, MapPin } from 'lucide-react';
 import useTabStore from '../store/tabStore';
-import { BrowseCustomerModal, isJmlValid } from '../lib/formHelpers';
+import { BrowseCustomerModal, BrowseLokasiModal, isJmlValid } from '../lib/formHelpers';
 
 function printNotaTukar(data, user) {
   const kembali = data.items_kembali || [];
@@ -127,10 +127,16 @@ function BrowseBarangModal({ onSelect, onClose }) {
 
 export default function TukarBarangForm({ onSuccess, tabId, editData }) {
   const user     = useAuthStore(s => s.user);
+  const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab = useTabStore(s => s.closeTab);
   const isEdit   = !!editData;
 
   const [tgltrans, setTgltrans] = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [lokasi, setLokasi] = useState(
+    isEdit && editData.idlokasi
+      ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi }
+      : (lokasiAuth || null)
+  );
   const [customer, setCustomer] = useState(
     isEdit && editData.idcustomer
       ? { idcustomer: editData.idcustomer, kodecustomer: editData.kodecustomer, namacustomer: editData.namacustomer }
@@ -168,6 +174,7 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
   );
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showLokasiModal, setShowLokasiModal]     = useState(false);
   const [showBarangModal, setShowBarangModal]     = useState(false);
   const [showBarang2ndModal, setShowBarang2ndModal] = useState(false);
   const [showBarangBaruModal, setShowBarangBaruModal] = useState(false);
@@ -252,6 +259,8 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
   const handleSubmit = async (shouldPrint = false) => {
     if (itemsKembali.length === 0) return toast.error('Tambahkan barang yang dikembalikan');
     if (itemsBaru.length === 0) return toast.error('Tambahkan barang pengganti');
+    if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
+    if (!customer?.idcustomer) return toast.error('Customer wajib dipilih');
 
     const invalidK = itemsKembali.findIndex(i => !isJmlValid(i.jml));
     if (invalidK !== -1) {
@@ -272,7 +281,8 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
     try {
       const payload = {
         tgltrans,
-        idcustomer: customer?.idcustomer || null,
+        idlokasi: lokasi.idlokasi,
+        idcustomer: customer.idcustomer,
         catatan: catatan || null,
         items_kembali: computedKembali.map(i => ({
           idbarang:     i.idbarang,
@@ -308,7 +318,7 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
       }
 
       if (onSuccess) onSuccess();
-      closeTab(tabId);
+      if (!isEdit) closeTab(tabId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
     } finally {
@@ -342,7 +352,19 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
                 <input type="date" value={tgltrans} onChange={e => setTgltrans(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
               </div>
-              <div />
+              <div>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Lokasi</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
+                    <MapPin className="w-3.5 h-3.5 text-dark-300 shrink-0" />
+                    {lokasi ? <span className="text-dark-500">{lokasi.namalokasi}</span> : <span className="text-dark-300">Pilih Lokasi...</span>}
+                  </div>
+                  <button onClick={() => setShowLokasiModal(true)}
+                    className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
+                    Browse
+                  </button>
+                </div>
+              </div>
 
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Customer</label>
@@ -600,6 +622,12 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
         <BrowseCustomerModal
           onSelect={c => { setCustomer(c); setShowCustomerModal(false); }}
           onClose={() => setShowCustomerModal(false)}
+        />
+      )}
+      {showLokasiModal && (
+        <BrowseLokasiModal
+          onSelect={l => { setLokasi(l); setShowLokasiModal(false); }}
+          onClose={() => setShowLokasiModal(false)}
         />
       )}
       {showBarangModal && (

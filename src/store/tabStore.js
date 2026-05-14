@@ -117,6 +117,11 @@ const useTabStore = create(
         // After hydration, re-attach components via pageRegistry
         onRehydrateStorage: () => (state) => {
           if (!state) return;
+          // Sync counter so new tabs never collide with persisted ids
+          if (state.tabs?.length) {
+            const maxId = Math.max(...state.tabs.map(t => t.id || 0));
+            if (maxId > tabIdCounter) tabIdCounter = maxId;
+          }
           // Dynamic import avoids circular dependency
           import('../lib/pageRegistry.jsx').then(({ getPage }) => {
             useTabStore.setState(s => ({

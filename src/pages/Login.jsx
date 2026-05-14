@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import api from '../api/axios';
+import api, { scheduleProactiveRefresh } from '../api/axios';
 import toast from 'react-hot-toast';
 import { Store, LogIn, Eye, EyeOff } from 'lucide-react';
 
@@ -31,6 +31,7 @@ export default function Login() {
       }
 
       loginAction(data.token, data.user, data.lokasi);
+      scheduleProactiveRefresh();
       toast.success(`Selamat datang, ${data.user.namauser}!`);
       navigate('/');
     } catch (err) {
@@ -48,6 +49,7 @@ export default function Login() {
         idlokasi: Number(selectedLokasi),
       });
       loginAction(data.token, data.user, data.lokasi);
+      scheduleProactiveRefresh();
       toast.success(`Selamat datang, ${data.user.namauser}!`);
       navigate('/');
     } catch (err) {

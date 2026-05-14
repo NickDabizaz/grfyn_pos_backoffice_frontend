@@ -29,13 +29,17 @@ export default function TabContent() {
           >
             <ErrorBoundary tab={tab}>
               <Suspense fallback={<TabSkeleton />}>
-                <TabComponent
-                  {...tab.props}
-                  tabId={tab.id}
-                  isActive={isActive}
-                  tabState={tab.state}
-                  updateTabState={(partial) => updateTabState(tab.id, partial)}
-                />
+                {TabComponent ? (
+                  <TabComponent
+                    {...tab.props}
+                    tabId={tab.id}
+                    isActive={isActive}
+                    tabState={tab.state}
+                    updateTabState={(partial) => updateTabState(tab.id, partial)}
+                  />
+                ) : (
+                  <TabSkeleton />
+                )}
               </Suspense>
             </ErrorBoundary>
           </div>

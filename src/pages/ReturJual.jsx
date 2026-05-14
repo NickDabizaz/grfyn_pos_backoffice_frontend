@@ -9,6 +9,7 @@ import Pagination from '../components/ui/Pagination';
 import useTabStore from '../store/tabStore';
 import ReturJualForm from './ReturJualForm';
 import { BrowseCustomerModal } from '../lib/formHelpers';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 function printNotaRetur(data, user) {
   const items = data.items || [];
@@ -67,6 +68,7 @@ ${items.map((item, i) => `<tr>
 export default function ReturJual({ isActive }) {
   const user    = useAuthStore(s => s.user);
   const openTab = useTabStore(s => s.openTab);
+  const confirm = useConfirm();
 
   const [retur, setRetur]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -123,7 +125,14 @@ export default function ReturJual({ isActive }) {
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
-    if (!confirm('Batalkan retur ini? Stok akan dikembalikan seperti semula.')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Retur',
+      message: 'Batalkan retur ini? Stok akan dikembalikan seperti semula.',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/returjual/${id}/cancel`);
       toast.success('Retur dibatalkan');

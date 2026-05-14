@@ -1,16 +1,23 @@
-import { useState } from 'react';
-import { ShoppingCart, User, Minus, Plus, Trash2, CreditCard } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShoppingCart, User, Minus, Plus, Trash2, CreditCard, MapPin } from 'lucide-react';
 import { formatRupiah } from '../../lib/utils';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { DEFAULT_PPN } from '../../lib/constants';
+import { BrowseLokasiModal } from '../../lib/formHelpers';
 
 export default function CartSidebar({ customers, usePpn, setShowPayment, cartCalculations }) {
   const [showCustomer, setShowCustomer] = useState(false);
-  const { items, customer, updateQty, removeItem, setCustomer, priceLevel, setPriceLevel } = useCartStore();
+  const [showLokasiModal, setShowLokasiModal] = useState(false);
+  const { items, customer, lokasi, updateQty, removeItem, setCustomer, setLokasi, priceLevel, setPriceLevel } = useCartStore();
   const user = useAuthStore((s) => s.user);
+  const lokasiAuth = useAuthStore((s) => s.lokasi);
 
   const { subtotal, ppnTotal, grandTotal } = cartCalculations;
+
+  useEffect(() => {
+    if (!lokasi && lokasiAuth) setLokasi(lokasiAuth);
+  }, [lokasi, lokasiAuth, setLokasi]);
 
   return (
     <div className="w-[420px] bg-white rounded-2xl border border-primary-50 p-4 flex flex-col">
@@ -36,7 +43,11 @@ export default function CartSidebar({ customers, usePpn, setShowPayment, cartCal
           </div>
           <button onClick={() => setShowCustomer(!showCustomer)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-warm-50 hover:bg-warm-100 text-dark-400 transition-colors">
-            <User className="w-3.5 h-3.5" /> {customer?.namacustomer || 'CASH'}
+            <User className="w-3.5 h-3.5" /> {customer?.namacustomer || 'Pilih Customer'}
+          </button>
+          <button onClick={() => setShowLokasiModal(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-warm-50 hover:bg-warm-100 text-dark-400 transition-colors">
+            <MapPin className="w-3.5 h-3.5" /> {lokasi?.namalokasi || 'Lokasi'}
           </button>
         </div>
       </div>
@@ -55,6 +66,13 @@ export default function CartSidebar({ customers, usePpn, setShowPayment, cartCal
             </button>
           ))}
         </div>
+      )}
+
+      {showLokasiModal && (
+        <BrowseLokasiModal
+          onSelect={(l) => { setLokasi(l); setShowLokasiModal(false); }}
+          onClose={() => setShowLokasiModal(false)}
+        />
       )}
 
       <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5">

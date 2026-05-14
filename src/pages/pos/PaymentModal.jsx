@@ -11,13 +11,21 @@ import { DEFAULT_PPN } from '../../lib/constants';
 export default function PaymentModal({ setShowPayment, usePpn, setUsePpn, loadJual, cartCalculations }) {
   const [bayar, setBayar] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { items, customer, clearCart } = useCartStore();
+  const { items, customer, lokasi, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
   const { grandTotal } = cartCalculations;
 
   const handlePay = async () => {
     const amount = parseFloat(bayar);
+    if (!customer?.idcustomer) {
+      toast.error('Customer wajib dipilih');
+      return;
+    }
+    if (!lokasi?.idlokasi) {
+      toast.error('Lokasi wajib dipilih');
+      return;
+    }
     if (isNaN(amount) || amount < grandTotal) {
       toast.error('Jumlah bayar kurang');
       return;
@@ -27,11 +35,14 @@ export default function PaymentModal({ setShowPayment, usePpn, setUsePpn, loadJu
 
     try {
       const payload = {
-        idcustomer: customer?.idcustomer || 1,
+        idcustomer: customer.idcustomer,
+        idlokasi   : lokasi.idlokasi,
         idkasir   : user?.iduser,
         grandtotal: grandTotal,
         bayar     : amount,
         kembali   : amount - grandTotal,
+        jenis     : 'JUAL LUNAS',
+        langsung_lunas: true,
         useppn    : usePpn,
         items     : items.map((item) => ({
           idbarang: item.idbarang,

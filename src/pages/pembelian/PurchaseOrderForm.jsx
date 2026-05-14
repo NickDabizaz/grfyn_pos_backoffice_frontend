@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { formatRupiah, today } from '../../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Trash2, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Save, Loader2, MapPin } from 'lucide-react';
 import useTabStore from '../../store/tabStore';
+import { useAuthStore } from '../../store/authStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseSupplierModal } from '../../lib/formHelpers';
+import { BrowseSupplierModal, BrowseLokasiModal } from '../../lib/formHelpers';
 
 function BrowseBarangModal({ onSelect, onClose }) {
   const [list, setList] = useState([]);
@@ -60,12 +61,15 @@ function BrowseBarangModal({ onSelect, onClose }) {
 
 export default function PurchaseOrderForm({ onSuccess, tabId }) {
   const closeTab = useTabStore(s => s.closeTab);
+  const lokasiAuth = useAuthStore(s => s.lokasi);
   const [tgltrans, setTgltrans] = useState(today());
+  const [lokasi, setLokasi] = useState(lokasiAuth || null);
   const [supplier, setSupplier] = useState(null);
   const [catatan, setCatatan]   = useState('');
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [showLokasiModal, setShowLokasiModal]     = useState(false);
   const [showBarangModal, setShowBarangModal]     = useState(false);
 
   const addBarang = (b) => {
@@ -83,11 +87,13 @@ export default function PurchaseOrderForm({ onSuccess, tabId }) {
   const grandtotal = items.reduce((s, it) => s + (parseFloat(it.harga) || 0) * (parseFloat(it.jml) || 0), 0);
 
   const handleSubmit = async () => {
+    if (!lokasi) return toast.error('Pilih lokasi terlebih dahulu');
     if (!supplier) return toast.error('Pilih supplier terlebih dahulu');
     if (items.length === 0) return toast.error('Tambahkan minimal 1 barang');
     setLoading(true);
     try {
       await api.post('/purchase-order', {
+        idlokasi: lokasi.idlokasi,
         idsupplier: supplier.idsupplier,
         tgltrans,
         catatan: catatan || null,
@@ -120,6 +126,15 @@ export default function PurchaseOrderForm({ onSuccess, tabId }) {
               <label className={labelClass}>Tanggal *</label>
               <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(d.toISOString().slice(0, 10))}
                 options={{ dateFormat: 'Y-m-d', locale: 'id' }} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Lokasi *</label>
+              <div className="flex gap-2">
+                <div className={`${inputClass} flex-1 flex items-center cursor-pointer`} onClick={() => setShowLokasiModal(true)}>
+                  <MapPin className="w-3.5 h-3.5 text-dark-300 mr-1.5" />
+                  {lokasi ? <span className="text-dark-500">{lokasi.namalokasi}</span> : <span className="text-dark-300">Pilih lokasi...</span>}
+                </div>
+              </div>
             </div>
             <div>
               <label className={labelClass}>Supplier *</label>
@@ -206,6 +221,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId }) {
       </div>
 
       {showSupplierModal && <BrowseSupplierModal onSelect={s => { setSupplier(s); setShowSupplierModal(false); }} onClose={() => setShowSupplierModal(false)} />}
+      {showLokasiModal && <BrowseLokasiModal onSelect={l => { setLokasi(l); setShowLokasiModal(false); }} onClose={() => setShowLokasiModal(false)} />}
       {showBarangModal && <BrowseBarangModal onSelect={addBarang} onClose={() => setShowBarangModal(false)} />}
     </div>
   );

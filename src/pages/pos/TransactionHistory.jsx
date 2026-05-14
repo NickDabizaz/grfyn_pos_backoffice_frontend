@@ -5,8 +5,10 @@ import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export default function TransactionHistory({ jual, loadJual }) {
+  const confirm = useConfirm();
   const [jualSearch, setJualSearch] = useState('');
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(jual, 20);
 
@@ -26,7 +28,14 @@ export default function TransactionHistory({ jual, loadJual }) {
   }, [jualSearch, loadJual]);
 
   const handleCancel = async (id) => {
-    if (!confirm('Batalkan transaksi ini? Stok akan dikembalikan.')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Transaksi',
+      message: 'Batalkan transaksi ini? Stok akan dikembalikan.',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try { 
       await api.put(`/jual/${id}/cancel`); 
       toast.success('Transaksi dibatalkan'); 

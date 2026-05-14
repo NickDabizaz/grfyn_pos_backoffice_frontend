@@ -10,6 +10,7 @@ import PurchaseOrderForm from './PurchaseOrderForm';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal } from '../../lib/formHelpers';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const STATUS_BADGE = {
   DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
@@ -21,6 +22,7 @@ const STATUS_BADGE = {
 
 export default function PurchaseOrder() {
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const confirm = useConfirm();
 
   const [list, setList]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -53,7 +55,14 @@ export default function PurchaseOrder() {
 
   const handleApprove = async (e, id) => {
     e.stopPropagation();
-    if (!confirm('Approve Purchase Order ini?')) return;
+    const confirmed = await confirm({
+      title: 'Approve Purchase Order',
+      message: 'Approve Purchase Order ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/purchase-order/${id}/approve`);
       toast.success('Purchase Order diapprove');
@@ -65,7 +74,14 @@ export default function PurchaseOrder() {
 
   const handleBatal = async (e, id) => {
     e.stopPropagation();
-    if (!confirm('Batalkan Purchase Order ini?')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Purchase Order',
+      message: 'Batalkan Purchase Order ini?',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/purchase-order/${id}/batal`);
       toast.success('Purchase Order dibatalkan');

@@ -8,6 +8,7 @@ export const useCartStore = create(
     // ── Active cart ──────────────────────────────────────────────────────────
     items   : [],
     customer: null,
+    lokasi  : null,
 
     addItem: (item) => set((state) => {
       // Resolve price according to active price level
@@ -38,6 +39,7 @@ export const useCartStore = create(
     }), false, 'cart/updateQty'),
 
     setCustomer: (customer) => set({ customer }, false, 'cart/setCustomer'),
+    setLokasi: (lokasi) => set({ lokasi }, false, 'cart/setLokasi'),
 
     clearCart: () => set({ items: [], customer: null }, false, 'cart/clearCart'),
 
@@ -57,6 +59,7 @@ export const useCartStore = create(
         label   : label || `Tahan #${holdIdCounter}`,
         items   : state.items,
         customer: state.customer,
+        lokasi  : state.lokasi,
         heldAt  : new Date().toISOString(),
       };
       return {
@@ -72,6 +75,7 @@ export const useCartStore = create(
       set((state) => ({
         items    : held.items,
         customer : held.customer,
+        lokasi   : held.lokasi || state.lokasi,
         heldCarts: state.heldCarts.filter((h) => h.id !== id),
       }), false, 'cart/recallCart');
     },

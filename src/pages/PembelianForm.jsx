@@ -73,7 +73,8 @@ function BrowseBarangModal({ onSelect, onClose }) {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      const params = search ? { search } : {};
+      const params = { excludeJenis: 'BARANG JADI' };
+      if (search) params.search = search;
       api.get('/barang/browse-barang', { params }).then(r => setBarangList(search ? r.data : r.data.slice(0, 10)));
     }, search ? 300 : 0);
     return () => clearTimeout(t);
@@ -232,6 +233,8 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
 
   const handleSubmit = async (shouldPrint = false) => {
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
+    if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
+    if (!supplier?.idsupplier) return toast.error('Supplier wajib dipilih');
 
     const parsedItems = items.map(i => {
       const n = Number(i.jml);
@@ -249,10 +252,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       const payload = {
         kodebeli:   autoGenerate ? null : kodebeli.trim(),
         tgltrans,
-        idsupplier: supplier?.idsupplier || null,
-        idlokasi:   lokasi?.idlokasi     || null,
+        idsupplier: supplier.idsupplier,
+        idlokasi:   lokasi.idlokasi,
         grandtotal: grandTotal,
-        bayar:      grandTotal,
+        bayar:      langsungLunas ? grandTotal : 0,
         langsung_lunas: langsungLunas,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
@@ -283,7 +286,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       }
 
       if (onSuccess) onSuccess();
-      closeTab(tabId);
+      if (!isEdit) closeTab(tabId);
     } catch (err) {
       console.log(err)
       toast.error(err.response?.data?.message || 'Gagal menyimpan');

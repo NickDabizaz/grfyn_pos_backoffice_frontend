@@ -11,6 +11,7 @@ import PembelianForm from './PembelianForm';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal, BrowseLokasiModal } from '../lib/formHelpers';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 // ─── Print utility ───────────────────────────────────────────────
 function printFaktur(data, user) {
@@ -76,6 +77,7 @@ export default function Pembelian({ isActive }) {
   const user          = useAuthStore(s => s.user);
   const openTab       = useTabStore(s => s.openTab);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const confirm = useConfirm();
 
   const [beli, setBeli]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -145,7 +147,14 @@ export default function Pembelian({ isActive }) {
         }
       }
     } catch {}
-    if (!confirm('Batalkan pembelian ini? Stok akan dikembalikan.')) return;
+    const confirmed = await confirm({
+      title: 'Batalkan Pembelian',
+      message: 'Batalkan pembelian ini? Stok akan dikembalikan.',
+      confirmText: 'Batalkan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await api.put(`/beli/${id}/cancel`);
       toast.success('Pembelian dibatalkan');
@@ -167,6 +176,11 @@ export default function Pembelian({ isActive }) {
   };
 
   const selectedRow = beli.find(b => b.idbeli === selectedId);
+  const formatJenisBeli = (value) => {
+    if (value === 'PEMBELIAN LUNAS') return 'BELI LUNAS';
+    if (value === 'PEMBELIAN') return 'BELI';
+    return value || 'BELI';
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -283,13 +297,14 @@ export default function Pembelian({ isActive }) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Supplier</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Lokasi</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Jenis</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data pembelian</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data pembelian</td></tr>
                 )}
                 {paginatedItems.map((b) => {
                   const isSelected = selectedId === b.idbeli;
@@ -309,6 +324,11 @@ export default function Pembelian({ isActive }) {
                       <td className="px-4 py-3 text-dark-500">{b.namasupplier || '-'}</td>
                       <td className="px-4 py-3 text-dark-400 text-xs">{b.namalokasi || '-'}</td>
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(b.grandtotal)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
+                          {formatJenisBeli(b.jenistransaksi)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {b.status === 'VOID' ? (
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">VOID</span>
