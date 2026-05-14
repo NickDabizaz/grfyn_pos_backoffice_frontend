@@ -53,6 +53,22 @@ export default function PurchaseOrder() {
     openOrFocusTab({ label: 'PO Baru', icon: Plus, component: PurchaseOrderForm, props: { onSuccess: loadData }, type: 'form_add', kodemenu: 'po-add' });
   };
 
+  const handleEdit = async (po) => {
+    try {
+      const { data } = await api.get(`/purchase-order/${po.idpo}`);
+      openOrFocusTab({
+        label: `Edit ${data.kodepo}`,
+        icon: Plus,
+        component: PurchaseOrderForm,
+        props: { onSuccess: loadData, editData: data },
+        type: 'form_edit',
+        kodemenu: `po-edit-${data.idpo}`,
+      });
+    } catch {
+      toast.error('Gagal memuat data PO');
+    }
+  };
+
   const handleApprove = async (e, id) => {
     e.stopPropagation();
     const confirmed = await confirm({
@@ -174,6 +190,7 @@ export default function PurchaseOrder() {
                 {paginatedItems.map((po) => (
                   <tr key={po.idpo}
                     onClick={() => setSelectedId(po.idpo === selectedId ? null : po.idpo)}
+                    onDoubleClick={() => handleEdit(po)}
                     className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === po.idpo ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{po.kodepo}</td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{String(po.tgltrans || '').slice(0, 10)}</td>

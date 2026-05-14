@@ -41,6 +41,22 @@ export default function GRN() {
     openOrFocusTab({ label: 'GRN Baru', icon: Plus, component: GRNForm, props: { onSuccess: loadData }, type: 'form_add', kodemenu: 'grn-add' });
   };
 
+  const handleEdit = async (g) => {
+    try {
+      const { data } = await api.get(`/grn/${g.idgrn}`);
+      openOrFocusTab({
+        label: `Edit ${data.kodegrn}`,
+        icon: Plus,
+        component: GRNForm,
+        props: { onSuccess: loadData, editData: data },
+        type: 'form_edit',
+        kodemenu: `grn-edit-${data.idgrn}`,
+      });
+    } catch {
+      toast.error('Gagal memuat data GRN');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 pt-4 pb-2 shrink-0">
@@ -111,6 +127,7 @@ export default function GRN() {
                 {paginatedItems.map((g) => (
                   <tr key={g.idgrn}
                     onClick={() => setSelectedId(g.idgrn === selectedId ? null : g.idgrn)}
+                    onDoubleClick={() => handleEdit(g)}
                     className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === g.idgrn ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{g.kodegrn}</td>
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{g.kodebeli || '-'}</td>

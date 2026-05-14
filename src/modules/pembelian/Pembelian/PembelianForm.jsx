@@ -3,11 +3,11 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Trash2, MapPin, Users, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, MapPin, Users, Plus, Printer, FileText, X } from 'lucide-react';
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseSupplierModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { BrowseSupplierModal, BrowseLokasiModal, BrowseGRNModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 
 function printFaktur(data, user) {
   const items = data.items || [];
@@ -178,13 +178,63 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       : []
   );
 
+  const [idgrn, setIdgrn]     = useState(editData?.idgrn   || null);
+  const [kodegrn, setKodegrn] = useState(editData?.kodegrn || '');
+  const [catatan, setCatatan] = useState(editData?.catatan || '');
+
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showLokasiModal, setShowLokasiModal]     = useState(false);
   const [showBarangModal, setShowBarangModal]     = useState(false);
+  const [showGRNModal, setShowGRNModal]           = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [langsungLunas, setLangsungLunas] = useState(editData?.statuslunas == 'LUNAS');
   const ppnPercent = user?.ppn || 11;
+
+  const handleSelectGRN = async (grn) => {
+    setShowGRNModal(false);
+    try {
+      const { data } = await api.get(`/grn/${grn.idgrn}`);
+      setIdgrn(data.idgrn);
+      setKodegrn(data.kodegrn);
+      if (data.idsupplier) {
+        setSupplier({
+          idsupplier:   data.idsupplier,
+          kodesupplier: data.kodesupplier,
+          namasupplier: data.namasupplier,
+          alamat:       data.salamat,
+          hp:           data.shp,
+        });
+      }
+      if (data.idlokasi) {
+        setLokasi({
+          idlokasi:   data.idlokasi,
+          namalokasi: data.namalokasi,
+          kodelokasi: data.kodelokasi,
+        });
+      }
+      if (data.items && data.items.length) {
+        setItems(data.items.map(item => ({
+          idbarang:        item.idbarang,
+          kodebarang:      item.kodebarang,
+          namabarang:      item.namabarang,
+          satuanbesar:     item.satuanbesar  || null,
+          satuansedang:    item.satuansedang || null,
+          satuankecil:     item.satuankecil  || null,
+          konversi1:       item.konversi1    || 0,
+          konversi2:       item.konversi2    || 0,
+          stok:            0,
+          satuan:          item.satuan || getDefaultSatuan(item),
+          jml:             '0',
+          harga_sebelumnya: parseFloat(item.harga) || 0,
+          harga:           String(parseFloat(item.harga) || 0),
+          ppn_mode:        defaultPpnMode,
+        })));
+      }
+    } catch {
+      toast.error('Gagal memuat data GRN');
+    }
+  };
 
   const addBarang = (b) => {
     if (items.find(i => i.idbarang === b.idbarang)) {
@@ -257,6 +307,9 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
         grandtotal: grandTotal,
         bayar:      langsungLunas ? grandTotal : 0,
         langsung_lunas: langsungLunas,
+        idgrn:      idgrn || null,
+        kodegrn:    kodegrn || null,
+        catatan:    catatan || null,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
           jml:      i.jml,
@@ -371,8 +424,37 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
 
-              {/* Empty cell to keep grid aligned */}
-              <div />
+              {/* Kode Referensi GRN — optional */}
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode GRN (Referensi, Opsional)</label>
+                <div className="flex items-center gap-2">
+                  <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-sm min-h-[38px] ${idgrn ? 'border-primary-100 bg-warm-50/40' : 'border-primary-100 bg-transparent'}`}>
+                    <FileText className="w-3.5 h-3.5 text-dark-300 shrink-0" />
+                    {kodegrn
+                      ? <span className="font-mono text-dark-500 text-xs">{kodegrn}</span>
+                      : <span className="text-dark-300 text-xs">Opsional — kosongkan jika tanpa referensi GRN</span>
+                    }
+                  </div>
+                  <button onClick={() => setShowGRNModal(true)}
+                    className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
+                    Browse GRN
+                  </button>
+                  {kodegrn && (
+                    <button onClick={() => { setIdgrn(null); setKodegrn(''); }}
+                      className="p-2 rounded-xl border border-red-100 text-red-400 hover:bg-red-50 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Catatan — spans full width */}
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Catatan</label>
+                <textarea value={catatan} onChange={e => setCatatan(e.target.value)} rows={2}
+                  placeholder="Opsional..."
+                  className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none" />
+              </div>
 
               {/* Supplier — spans full width */}
               <div className="col-span-2">
@@ -545,6 +627,12 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       </div>
 
       {/* ── Modals ── */}
+      {showGRNModal && (
+        <BrowseGRNModal
+          onSelect={handleSelectGRN}
+          onClose={() => setShowGRNModal(false)}
+        />
+      )}
       {showSupplierModal && (
         <BrowseSupplierModal
           onSelect={s => { setSupplier(s); setShowSupplierModal(false); }}

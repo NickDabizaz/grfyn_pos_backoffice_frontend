@@ -109,6 +109,177 @@ export function BrowseLokasiModal({ onSelect, onClose }) {
   );
 }
 
+export function BrowsePOModal({ onSelect, onClose }) {
+  const [poList, setPoList] = useState([]);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const params = { available: 1 };
+    if (search) params.search = search;
+    api.get('/purchase-order', { params }).then(r => setPoList(r.data)).catch(() => setPoList([]));
+  }, [search]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-primary-50">
+          <h3 className="text-sm font-bold text-dark-500">Pilih Purchase Order</h3>
+        </div>
+        <div className="p-4">
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+            <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
+              placeholder="Cari PO..." autoFocus
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+          <div className="max-h-72 overflow-y-auto scrollbar-thin">
+            {poList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada PO ditemukan' : 'Memuat...'}</p>
+            )}
+            {poList.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-primary-50 bg-warm-50">
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Kode</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Tanggal</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Supplier</th>
+                    <th className="text-right px-3 py-2 text-xs text-dark-300 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {poList.map(po => (
+                    <tr key={po.idpo} onClick={() => onSelect(po)}
+                      className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-400">{po.kodepo}</td>
+                      <td className="px-3 py-2.5 text-xs text-dark-400">{String(po.tgltrans || '').slice(0, 10)}</td>
+                      <td className="px-3 py-2.5 text-sm text-dark-500">{po.namasupplier}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-accent-600">{formatRupiah(po.grandtotal || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BrowseGRNModal({ onSelect, onClose }) {
+  const [grnList, setGrnList] = useState([]);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const params = { available: 1 };
+    if (search) params.search = search;
+    api.get('/grn', { params }).then(r => setGrnList(r.data)).catch(() => setGrnList([]));
+  }, [search]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-primary-50">
+          <h3 className="text-sm font-bold text-dark-500">Pilih GRN (Goods Received Note)</h3>
+        </div>
+        <div className="p-4">
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+            <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
+              placeholder="Cari GRN..." autoFocus
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+          <div className="max-h-72 overflow-y-auto scrollbar-thin">
+            {grnList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada GRN ditemukan' : 'Memuat...'}</p>
+            )}
+            {grnList.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-primary-50 bg-warm-50">
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Kode</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Tanggal</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Supplier</th>
+                    <th className="text-right px-3 py-2 text-xs text-dark-300 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grnList.map(grn => (
+                    <tr key={grn.idgrn} onClick={() => onSelect(grn)}
+                      className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-400">{grn.kodegrn}</td>
+                      <td className="px-3 py-2.5 text-xs text-dark-400">{String(grn.tgltrans || '').slice(0, 10)}</td>
+                      <td className="px-3 py-2.5 text-sm text-dark-500">{grn.namasupplier}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-accent-600">{formatRupiah(grn.grandtotal || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BrowseBeliModal({ onSelect, onClose }) {
+  const [beliList, setBeliList] = useState([]);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const params = { available: 1 };
+    if (search) params.search = search;
+    api.get('/beli', { params }).then(r => setBeliList(r.data)).catch(() => setBeliList([]));
+  }, [search]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-primary-50">
+          <h3 className="text-sm font-bold text-dark-500">Pilih Pembelian</h3>
+        </div>
+        <div className="p-4">
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+            <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
+              placeholder="Cari pembelian..." autoFocus
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+          <div className="max-h-72 overflow-y-auto scrollbar-thin">
+            {beliList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada pembelian ditemukan' : 'Memuat...'}</p>
+            )}
+            {beliList.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-primary-50 bg-warm-50">
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Kode</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Tanggal</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300 font-semibold">Supplier</th>
+                    <th className="text-right px-3 py-2 text-xs text-dark-300 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {beliList.map(beli => (
+                    <tr key={beli.idbeli} onClick={() => onSelect(beli)}
+                      className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-400">{beli.kodebeli}</td>
+                      <td className="px-3 py-2.5 text-xs text-dark-400">{String(beli.tgltrans || '').slice(0, 10)}</td>
+                      <td className="px-3 py-2.5 text-sm text-dark-500">{beli.namasupplier}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-accent-600">{formatRupiah(beli.grandtotal || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────── PPN Dropdown ───────────────
 
 export function PpnDropdown({ value, onChange }) {
