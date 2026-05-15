@@ -2,8 +2,121 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { formatRupiah } from '../lib/utils';
 import { Search, ChevronDown } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // ─────────────── Browse Modals ───────────────
+
+export function BrowseBarangModal({
+  onSelect,
+  onClose,
+  jenis,
+  excludeJenis,
+  priceType = 'jual',
+  showStock = true,
+}) {
+  const [barangList, setBarangList] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      const params = { limit: search ? 50 : 10 };
+      if (search) params.search = search;
+      if (jenis) params.jenis = jenis;
+      if (excludeJenis) params.excludeJenis = excludeJenis;
+
+      setLoading(true);
+      setError('');
+      api.get('/barang/browse-barang', { params, signal: controller.signal })
+        .then(r => setBarangList(Array.isArray(r.data) ? r.data : []))
+        .catch(err => {
+          if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return;
+          const message = err.response?.data?.message || 'Gagal memuat barang';
+          setBarangList([]);
+          setError(message);
+          toast.error(message);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, search ? 300 : 0);
+
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [search, jenis, excludeJenis]);
+
+  const priceField = priceType === 'beli' ? 'hargabeli_terbaru' : 'hargajual_terbaru';
+  const priceLabel = priceType === 'beli' ? 'Harga Beli' : 'Harga Jual';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-primary-50">
+          <h3 className="text-sm font-bold text-dark-500">Pilih Barang</h3>
+        </div>
+        <div className="p-4">
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
+            <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
+              placeholder="Cari kode / nama barang..." autoFocus
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+          <div className="max-h-72 overflow-y-auto scrollbar-thin">
+            {loading && (
+              <p className="text-sm text-dark-300 text-center py-8">Memuat...</p>
+            )}
+            {!loading && error && (
+              <div className="text-center py-8">
+                <p className="text-sm font-medium text-red-500">{error}</p>
+                <p className="text-xs text-dark-300 mt-1">Coba buka lagi atau cek koneksi server.</p>
+              </div>
+            )}
+            {!loading && !error && barangList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada hasil' : 'Belum ada barang aktif'}</p>
+            )}
+            {!loading && !error && barangList.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-primary-50">
+                    <th className="text-left px-3 py-2 text-xs text-dark-300">Kode</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300">Nama Barang</th>
+                    <th className="text-left px-3 py-2 text-xs text-dark-300">Satuan</th>
+                    {showStock && <th className="text-right px-3 py-2 text-xs text-dark-300">Stok</th>}
+                    <th className="text-right px-3 py-2 text-xs text-dark-300">{priceLabel}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {barangList.map(b => (
+                    <tr key={b.idbarang} onClick={() => onSelect(b)}
+                      className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-300">{b.kodebarang}</td>
+                      <td className="px-3 py-2.5 font-medium text-dark-500">{b.namabarang}</td>
+                      <td className="px-3 py-2.5 text-dark-400 text-xs">
+                        {b.satuanbesar || b.satuansedang || b.satuankecil || '-'}
+                      </td>
+                      {showStock && (
+                        <td className={`px-3 py-2.5 text-right font-mono text-xs font-semibold ${Number(b.stok) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {Number(b.stok || 0)}
+                        </td>
+                      )}
+                      <td className="px-3 py-2.5 text-right font-mono text-dark-400 text-xs">
+                        {formatRupiah(b[priceField])}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function BrowseCustomerModal({ onSelect, onClose }) {
   const [customers, setCustomers] = useState([]);

@@ -3,75 +3,11 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Trash2, MapPin, Users, Plus, FileText, X } from 'lucide-react';
+import { ArrowLeft, Trash2, MapPin, Users, Plus, FileText, X } from 'lucide-react';
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseSupplierModal, BrowseLokasiModal, BrowsePOModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
-
-function BrowseBarangModal({ onSelect, onClose }) {
-  const [barangList, setBarangList] = useState([]);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const params = { excludeJenis: 'BARANG JADI' };
-      if (search) params.search = search;
-      api.get('/barang/browse-barang', { params }).then(r => setBarangList(search ? r.data : r.data.slice(0, 10)));
-    }, search ? 300 : 0);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-primary-50">
-          <h3 className="text-sm font-bold text-dark-500">Pilih Barang</h3>
-        </div>
-        <div className="p-4">
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
-            <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
-              placeholder="Cari kode / nama barang..." autoFocus
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
-          </div>
-          <div className="max-h-72 overflow-y-auto scrollbar-thin">
-            {barangList.length === 0 && (
-              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada hasil' : 'Memuat...'}</p>
-            )}
-            {barangList.length > 0 && (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-primary-50">
-                    <th className="text-left px-3 py-2 text-xs text-dark-300">Kode</th>
-                    <th className="text-left px-3 py-2 text-xs text-dark-300">Nama Barang</th>
-                    <th className="text-left px-3 py-2 text-xs text-dark-300">Satuan</th>
-                    <th className="text-right px-3 py-2 text-xs text-dark-300">Harga Beli</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {barangList.map(b => (
-                    <tr key={b.idbarang} onClick={() => onSelect(b)}
-                      className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
-                      <td className="px-3 py-2.5 text-xs font-mono text-dark-300">{b.kodebarang}</td>
-                      <td className="px-3 py-2.5 font-medium text-dark-500">{b.namabarang}</td>
-                      <td className="px-3 py-2.5 text-dark-400 text-xs">
-                        {b.satuanbesar || b.satuansedang || b.satuankecil || '-'}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-dark-400 text-xs">
-                        {formatRupiah(b.hargabeli_terbaru)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowsePOModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 
 export default function GRNForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
@@ -508,6 +444,8 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
       )}
       {showBarangModal && (
         <BrowseBarangModal
+          priceType="beli"
+          showStock={false}
           onSelect={addBarang}
           onClose={() => setShowBarangModal(false)}
         />
