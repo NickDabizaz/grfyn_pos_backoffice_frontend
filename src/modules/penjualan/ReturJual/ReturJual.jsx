@@ -3,7 +3,7 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, Printer, Pencil, Undo2 } from 'lucide-react';
+import { Plus, Search, RefreshCw, Printer, Pencil, Undo2, CheckCircle, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -14,7 +14,7 @@ import { useConfirm } from '../../../components/ui/ConfirmDialog';
 function printNotaRetur(data, user) {
   const items = data.items || [];
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Nota Retur - ${data.kodereturjual}</title>
+<title>Nota Retur Jual - ${data.kodereturjual}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;margin:20px;color:#333}
   h2{text-align:center;margin:0 0 2px}
@@ -40,18 +40,18 @@ function printNotaRetur(data, user) {
 <table><thead><tr>
   <th style="width:32px">No</th><th>Kode</th><th>Nama Barang</th>
   <th class="r" style="width:50px">Jml</th>
+  <th class="c" style="width:60px">Sat</th>
   <th class="r" style="width:90px">Harga</th>
   <th class="r" style="width:100px">Subtotal</th>
-  <th class="c" style="width:120px">Tindak Lanjut</th>
 </tr></thead><tbody>
 ${items.map((item, i) => `<tr>
   <td class="c">${i + 1}</td>
   <td>${item.kodebarang || ''}</td>
   <td>${item.namabarang || ''}</td>
   <td class="r">${item.jml}</td>
+  <td class="c">${item.satuan || ''}</td>
   <td class="r">${Number(item.harga).toLocaleString('id-ID')}</td>
   <td class="r">${Number(item.subtotal).toLocaleString('id-ID')}</td>
-  <td class="c">${item.tindaklanjut || '-'}</td>
 </tr>`).join('')}
 </tbody></table>
 <div class="totals">
@@ -68,9 +68,11 @@ ${items.map((item, i) => `<tr>
 export default function ReturJual({ isActive }) {
   const user    = useAuthStore(s => s.user);
   const openTab = useTabStore(s => s.openTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
+  const refreshToken = useTabStore(s => s.refreshTokens?.['penjualan.retur']);
   const confirm = useConfirm();
 
-  const [retur, setRetur]             = useState([]);
+  const [retur, setRetur]           = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -90,7 +92,7 @@ export default function ReturJual({ isActive }) {
     api.get('/returjual', { params }).then(r => setRetur(r.data)).catch(() => {});
   }, [filterKode, filterCustomer, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadRetur(); }, [loadRetur]);
+  useEffect(() => { loadRetur(); }, [loadRetur, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(retur, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterCustomer, tglAwal, tglAkhir]);
@@ -106,7 +108,7 @@ export default function ReturJual({ isActive }) {
   };
 
   const handleEdit = async (r) => {
-    if (r.status === 'VOID') return toast.error('Retur VOID tidak dapat diedit');
+    if (r.status === 'CANCELLED') return toast.error('Retur yang dibatalkan tidak dapat diedit');
     try {
       const { data } = await api.get(`/returjual/${r.idreturjual}`);
       openTab({
@@ -121,13 +123,34 @@ export default function ReturJual({ isActive }) {
     }
   };
 
+  const handleApprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Approve Retur Penjualan',
+      message: 'Approve Retur Penjualan ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/returjual/${id}/approve`);
+      toast.success('Retur Penjualan diapprove');
+      loadRetur();
+      requestRefresh('penjualan.transaksi');
+      requestRefresh('penjualan');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal approve');
+    }
+  };
+
   const handleRowClick = (r) => setSelectedId(r.idreturjual === selectedId ? null : r.idreturjual);
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
     const confirmed = await confirm({
       title: 'Batalkan Retur',
-      message: 'Batalkan retur ini? Stok akan dikembalikan seperti semula.',
+      message: 'Batalkan retur DRAFT ini?',
       confirmText: 'Batalkan',
       cancelText: 'Batal',
       variant: 'danger',
@@ -138,8 +161,31 @@ export default function ReturJual({ isActive }) {
       toast.success('Retur dibatalkan');
       if (selectedId === id) setSelectedId(null);
       loadRetur();
+      requestRefresh('penjualan.transaksi');
+      requestRefresh('penjualan');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal');
+    }
+  };
+
+  const handleUnapprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Batal Approve Retur Penjualan',
+      message: 'Kembalikan Retur Penjualan ini ke DRAFT? Kartu stok dan kartu piutang retur akan dihapus.',
+      confirmText: 'Batal Approve',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/returjual/${id}/unapprove`);
+      toast.success('Approve Retur Penjualan dibatalkan');
+      loadRetur();
+      requestRefresh('penjualan.transaksi');
+      requestRefresh('penjualan');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
   };
 
@@ -158,14 +204,13 @@ export default function ReturJual({ isActive }) {
   return (
     <div className="flex flex-col h-full">
 
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-6 pt-4 pb-2 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-dark-500">Retur Penjualan</h2>
           <p className="text-sm text-dark-300">Catat retur / pengembalian barang dari customer</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'VOID' && (
+          {selectedRow && selectedRow.status === 'APPROVED' && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
@@ -182,7 +227,6 @@ export default function ReturJual({ isActive }) {
         </div>
       </div>
 
-      {/* Filter Bar */}
       <div className="px-6 pb-3 shrink-0">
         <div className="bg-white rounded-2xl border border-primary-50 p-3 grid grid-cols-2 gap-3 md:grid-cols-3">
 
@@ -231,10 +275,9 @@ export default function ReturJual({ isActive }) {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="flex-1 overflow-auto px-6 pb-4">
         <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
-          
+
           <div className="overflow-y-auto scrollbar-thin">
             <table className="w-full">
               <thead className="sticky top-0 z-10">
@@ -245,7 +288,7 @@ export default function ReturJual({ isActive }) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Jual</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,7 +302,7 @@ export default function ReturJual({ isActive }) {
                       onClick={() => handleRowClick(r)}
                       onDoubleClick={() => handleEdit(r)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
-                        r.status === 'VOID'
+                        r.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'
                           : isSelected
                             ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
@@ -272,19 +315,39 @@ export default function ReturJual({ isActive }) {
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(r.total)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                          r.status === 'VOID' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                          r.status === 'CANCELLED'
+                            ? 'bg-red-50 text-red-600'
+                            : r.status === 'APPROVED'
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : 'bg-amber-50 text-amber-600'
                         }`}>
-                          {r.status === 'VOID' ? 'VOID' : 'AKTIF'}
+                          {r.status || 'DRAFT'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {r.status !== 'VOID' && (
-                          <button
-                            onClick={(e) => handleCancel(e, r.idreturjual)}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                            Hapus
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          {r.status === 'APPROVED' && (
+                            <button
+                              onClick={(e) => handleUnapprove(e, r.idreturjual)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                              <XCircle className="w-3 h-3" /> Batal Approve
+                            </button>
+                          )}
+                          {r.status === 'DRAFT' && (
+                            <>
+                              <button
+                                onClick={(e) => handleApprove(e, r.idreturjual)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                                <CheckCircle className="w-3 h-3" /> Approve
+                              </button>
+                              <button
+                                onClick={(e) => handleCancel(e, r.idreturjual)}
+                                className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                                Hapus
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

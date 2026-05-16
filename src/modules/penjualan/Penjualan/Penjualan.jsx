@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, Printer, Pencil, Ban } from 'lucide-react';
+import { Plus, Search, RefreshCw, Printer, Pencil, CheckCircle, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -12,6 +12,14 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseCustomerModal, BrowseLokasiModal } from '../../../lib/formHelpers';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function printFaktur(data, user) {
   const items = data.items || [];
@@ -38,14 +46,13 @@ function printFaktur(data, user) {
   <span>Kode Jual</span><span>${data.kodejual}</span>
   <span>Tanggal</span><span>${String(data.tgltrans || '').slice(0, 10)}</span>
   <span>Customer</span><span>${data.namacustomer || '-'}</span>
-  <span>Status</span><span>${data.status || '-'}</span>
+  <span>Lokasi</span><span>${data.namalokasi || '-'}</span>
 </div>
 <table><thead><tr>
   <th style="width:32px">No</th><th>Kode</th><th>Nama Barang</th>
   <th class="c" style="width:60px">Sat</th>
   <th class="r" style="width:50px">Jml</th>
   <th class="r" style="width:90px">Harga</th>
-  <th class="r" style="width:60px">Diskon</th>
   <th class="r" style="width:80px">PPN</th>
   <th class="r" style="width:100px">Subtotal</th>
 </tr></thead><tbody>
@@ -53,10 +60,9 @@ ${items.map((item, i) => `<tr>
   <td class="c">${i + 1}</td>
   <td>${item.kodebarang || ''}</td>
   <td>${item.namabarang || ''}</td>
-  <td class="c">${item.satuan || item.satuankecil || ''}</td>
+  <td class="c">${item.satuan || ''}</td>
   <td class="r">${item.jml}</td>
   <td class="r">${Number(item.harga).toLocaleString('id-ID')}</td>
-  <td class="r">${Number(item.diskon || 0).toLocaleString('id-ID')}</td>
   <td class="r">${Number(item.ppn || 0).toLocaleString('id-ID')}</td>
   <td class="r">${Number(item.subtotal).toLocaleString('id-ID')}</td>
 </tr>`).join('')}
@@ -74,10 +80,12 @@ ${items.map((item, i) => `<tr>
 }
 
 export default function Penjualan({ isActive }) {
-  const user            = useAuthStore(s => s.user);
-  const openTab         = useTabStore(s => s.openTab);
-  const openOrFocusTab  = useTabStore(s => s.openOrFocusTab);
-  const confirm = useConfirm();
+  const user           = useAuthStore(s => s.user);
+  const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
+  const refreshToken   = useTabStore(s => s.refreshTokens?.['penjualan.transaksi'] || s.refreshTokens?.['penjualan']);
+  const confirm        = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
 
   const [jual, setJual]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -102,7 +110,7 @@ export default function Penjualan({ isActive }) {
     api.get('/jual', { params }).then(r => setJual(r.data)).catch(() => {});
   }, [filterKode, filterCustomer, filterLokasi, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadJual(); }, [loadJual]);
+  useEffect(() => { loadJual(); }, [loadJual, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(jual, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterCustomer, filterLokasi, tglAwal, tglAkhir]);
@@ -118,17 +126,7 @@ export default function Penjualan({ isActive }) {
   };
 
   const handleEdit = async (j) => {
-    if (j.status === 'VOID') return toast.error('Penjualan VOID tidak dapat diedit');
     try {
-      const { data: check } = await api.get(`/jual/${j.idjual}/check-edit`);
-      if (!check.canEdit) {
-        if (check.reason === 'PIUTANG_LUNAS') {
-          return toast.error(check.message || 'Hapus pelunasan terlebih dahulu');
-        }
-        if (check.reason === 'HAS_RETUR') {
-          return toast.error(check.message || 'Batalkan retur terlebih dahulu');
-        }
-      }
       const { data } = await api.get(`/jual/${j.idjual}`);
       openOrFocusTab({
         label: `Edit ${j.kodejual}`,
@@ -143,24 +141,43 @@ export default function Penjualan({ isActive }) {
     }
   };
 
-  const handleRowClick = (j) => setSelectedId(j.idjual === selectedId ? null : j.idjual);
+  const handleApprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Approve Penjualan',
+      message: 'Approve Penjualan ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/jual/${id}/approve`);
+      toast.success('Penjualan diapprove');
+      loadJual();
+      requestRefresh('penjualan.bpk');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal approve');
+    }
+  };
+
+  const handleRowClick = (j) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === j.idjual && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(j);
+      return;
+    }
+    lastRowClickRef.current = { id: j.idjual, at: now };
+    setSelectedId(j.idjual === selectedId ? null : j.idjual);
+  };
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
-    try {
-      const { data: check } = await api.get(`/jual/${id}/check-edit`);
-      if (!check.canEdit) {
-        if (check.reason === 'PIUTANG_LUNAS') {
-          return toast.error(check.message || 'Hapus pelunasan terlebih dahulu');
-        }
-        if (check.reason === 'HAS_RETUR') {
-          return toast.error(`Terdapat retur: ${check.returs?.join(', ')}. Batalkan retur terlebih dahulu.`);
-        }
-      }
-    } catch {}
     const confirmed = await confirm({
       title: 'Batalkan Penjualan',
-      message: 'Batalkan penjualan ini? Stok akan dikembalikan.',
+      message: 'Batalkan penjualan DRAFT ini?',
       confirmText: 'Batalkan',
       cancelText: 'Batal',
       variant: 'danger',
@@ -171,8 +188,35 @@ export default function Penjualan({ isActive }) {
       toast.success('Penjualan dibatalkan');
       if (selectedId === id) setSelectedId(null);
       loadJual();
+      requestRefresh('penjualan.bpk');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal');
+    }
+  };
+
+  const handleUnapprove = async (e, id) => {
+    e.stopPropagation();
+    try {
+      const { data: check } = await api.get(`/jual/${id}/check-edit`);
+      if (!check.canEdit) {
+        return toast.error(check.message || 'Hapus pelunasan piutang terlebih dahulu');
+      }
+    } catch {}
+    const confirmed = await confirm({
+      title: 'Batal Approve Penjualan',
+      message: 'Batal approve akan menghapus kartu stok penjualan dan mengembalikan transaksi ke DRAFT.',
+      confirmText: 'Batal Approve',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/jual/${id}/unapprove`);
+      toast.success('Approve penjualan dibatalkan');
+      loadJual();
+      requestRefresh('penjualan.bpk');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
   };
 
@@ -187,23 +231,22 @@ export default function Penjualan({ isActive }) {
   };
 
   const selectedRow = jual.find(j => j.idjual === selectedId);
-  const formatJenisJual = (row) => {
-    if (row.jenis === 'POS') return 'JUAL';
-    if (row.jenis === 'JUAL' && row.status === 'LUNAS') return 'JUAL LUNAS';
-    return row.jenis || 'JUAL';
+  const formatJenisJual = (value) => {
+    if (value === 'PENJUALAN LUNAS') return 'JUAL LUNAS';
+    if (value === 'PENJUALAN') return 'JUAL';
+    return value || 'JUAL';
   };
 
   return (
     <div className="flex flex-col h-full">
 
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-6 pt-4 pb-2 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-dark-500">Penjualan</h2>
-          <p className="text-sm text-dark-300">Catat transaksi penjualan ke customer</p>
+          <p className="text-sm text-dark-300">Catat penjualan barang ke customer</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'VOID' && (
+          {selectedRow && selectedRow.status !== 'CANCELLED' && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
@@ -220,7 +263,6 @@ export default function Penjualan({ isActive }) {
         </div>
       </div>
 
-      {/* Filter Bar */}
       <div className="px-6 pb-3 shrink-0">
         <div className="bg-white rounded-2xl border border-primary-50 p-3 grid grid-cols-2 gap-3 md:grid-cols-4">
 
@@ -235,7 +277,6 @@ export default function Penjualan({ isActive }) {
             </div>
           </div>
 
-          {/* Customer */}
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Customer</label>
             <div className="flex gap-1.5">
@@ -251,12 +292,11 @@ export default function Penjualan({ isActive }) {
               </button>
               {filterCustomer && (
                 <button onClick={() => setFilterCustomer(null)}
-                  className="px-2 py-1.5 rounded-lg border border-red-100 text-[10px] text-red-400 hover:bg-red-50 shrink-0">&times;</button>
+                  className="px-2 py-1.5 rounded-lg border border-red-100 text-[10px] text-red-400 hover:bg-red-50 shrink-0">✕</button>
               )}
             </div>
           </div>
 
-          {/* Lokasi */}
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Lokasi</label>
             <div className="flex gap-1.5">
@@ -272,20 +312,19 @@ export default function Penjualan({ isActive }) {
               </button>
               {filterLokasi && (
                 <button onClick={() => setFilterLokasi(null)}
-                  className="px-2 py-1.5 rounded-lg border border-red-100 text-[10px] text-red-400 hover:bg-red-50 shrink-0">&times;</button>
+                  className="px-2 py-1.5 rounded-lg border border-red-100 text-[10px] text-red-400 hover:bg-red-50 shrink-0">✕</button>
               )}
             </div>
           </div>
 
-          {/* Tanggal */}
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal</label>
             <div className="flex items-center gap-1.5">
-              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(d.toISOString().slice(0, 10))}
+              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(toDateInputValue(d))}
                 options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                 className="flatpickr-input flex-1 text-xs" placeholder="Dari tanggal" />
               <span className="text-[10px] text-dark-300 shrink-0">s/d</span>
-              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(d.toISOString().slice(0, 10))}
+              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(toDateInputValue(d))}
                 options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                 className="flatpickr-input flex-1 text-xs" placeholder="Sampai tanggal" />
             </div>
@@ -294,7 +333,6 @@ export default function Penjualan({ isActive }) {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="flex-1 overflow-auto px-6 pb-4">
         <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
           <div className="overflow-y-auto scrollbar-thin">
@@ -308,7 +346,7 @@ export default function Penjualan({ isActive }) {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Jenis</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,7 +360,7 @@ export default function Penjualan({ isActive }) {
                       onClick={() => handleRowClick(j)}
                       onDoubleClick={() => handleEdit(j)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
-                        j.status === 'VOID'
+                        j.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'
                           : isSelected
                             ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
@@ -334,24 +372,42 @@ export default function Penjualan({ isActive }) {
                       <td className="px-4 py-3 text-dark-400 text-xs">{j.namalokasi || '-'}</td>
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(j.grandtotal)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{formatJenisJual(j)}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
+                          {formatJenisJual(j.jenistransaksi)}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {j.status === 'VOID' ? (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">VOID</span>
-                        ) : j.status === 'LUNAS' ? (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">LUNAS</span>
+                        {j.status === 'CANCELLED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">CANCELLED</span>
+                        ) : j.status === 'CONFIRMED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">CONFIRMED</span>
+                        ) : j.status === 'APPROVED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">APPROVED</span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">{j.status}</span>
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">DRAFT</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {j.status !== 'VOID' && (
+                        {j.status === 'APPROVED' && (
                           <button
-                            onClick={(e) => handleCancel(e, j.idjual)}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                            Hapus
+                            onClick={(e) => handleUnapprove(e, j.idjual)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                            <XCircle className="w-3 h-3" /> Batal Approve
                           </button>
+                        )}
+                        {j.status === 'DRAFT' && (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => handleApprove(e, j.idjual)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                              <CheckCircle className="w-3 h-3" /> Approve
+                            </button>
+                            <button
+                              onClick={(e) => handleCancel(e, j.idjual)}
+                              className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                              Hapus
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

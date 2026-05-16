@@ -90,7 +90,7 @@ export default function TukarBarangForm({ onSuccess, tabId, editData }) {
           kodebarang:   item.kodebarang,
           namabarang:   item.namabarang,
           satuan:       item.satuankecil || '',
-          jml:          String(item.jml),
+          jml:          String(parseInt(item.jml, 10) || 0),
           harga:        parseFloat(item.harga) || 0,
           tindaklanjut: item.tindaklanjut || 'MASUK_STOK',
           idbarang2nd:  item.idbarang2nd || null,
