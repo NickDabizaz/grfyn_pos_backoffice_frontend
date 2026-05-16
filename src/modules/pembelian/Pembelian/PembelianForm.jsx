@@ -7,7 +7,22 @@ import { ArrowLeft, Trash2, MapPin, Users, Plus, Printer, FileText, X } from 'lu
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowseGRNModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowseBPBModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const STATUS_BADGE = {
+  DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CONFIRMED: 'bg-blue-50 text-blue-600 border-blue-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
 
 function printFaktur(data, user) {
   const items = data.items || [];
@@ -82,7 +97,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       ? (editData.idlokasi ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi } : null)
       : (lokasiAuth || null)
   );
-  const [tgltrans, setTgltrans]         = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [tgltrans, setTgltrans]         = useState(toDateInputValue(editData?.tgltrans));
   const [supplier, setSupplier]         = useState(
     isEdit
       ? (editData.idsupplier ? { idsupplier: editData.idsupplier, kodesupplier: editData.kodesupplier, namasupplier: editData.namasupplier, alamat: editData.salamat, hp: editData.shp } : null)
@@ -105,30 +120,44 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
           jml:             String(item.jml),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
+          bpb_jml:          item.bpb_jml ?? item.jml,
+          bpb_harga:        item.bpb_harga ?? item.harga,
           ppn_mode:        item.ppn_mode || defaultPpnMode,
         }))
       : []
   );
 
-  const [idgrn, setIdgrn]     = useState(editData?.idgrn   || null);
-  const [kodegrn, setKodegrn] = useState(editData?.kodegrn || '');
+  const [idbpb, setidbpb]     = useState(editData?.idbpb   || null);
+  const [kodebpb, setkodebpb] = useState(editData?.kodebpb || '');
   const [catatan, setCatatan] = useState(editData?.catatan || '');
 
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showLokasiModal, setShowLokasiModal]     = useState(false);
   const [showBarangModal, setShowBarangModal]     = useState(false);
-  const [showGRNModal, setShowGRNModal]           = useState(false);
+  const [showBPBModal, setShowBPBModal]           = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [langsungLunas, setLangsungLunas] = useState(editData?.statuslunas == 'LUNAS');
   const ppnPercent = user?.ppn || 11;
 
-  const handleSelectGRN = async (grn) => {
-    setShowGRNModal(false);
+  useEffect(() => {
+    if (!isEdit || !idbpb) return;
+    api.get(`/bpb/${idbpb}`).then(({ data }) => {
+      const bpbMap = new Map((data.items || []).map(i => [i.idbarang, i]));
+      setItems(prev => prev.map(item => {
+        const ref = bpbMap.get(item.idbarang);
+        if (!ref) return item;
+        return { ...item, bpb_jml: parseFloat(ref.jml || 0), bpb_harga: parseFloat(ref.harga || 0) };
+      }));
+    }).catch(() => {});
+  }, [isEdit, idbpb]);
+
+  const handleSelectBPB = async (BPB) => {
+    setShowBPBModal(false);
     try {
-      const { data } = await api.get(`/grn/${grn.idgrn}`);
-      setIdgrn(data.idgrn);
-      setKodegrn(data.kodegrn);
+      const { data } = await api.get(`/bpb/${BPB.idbpb}`);
+      setidbpb(data.idbpb);
+      setkodebpb(data.kodebpb);
       if (data.idsupplier) {
         setSupplier({
           idsupplier:   data.idsupplier,
@@ -157,14 +186,16 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
           konversi2:       item.konversi2    || 0,
           stok:            0,
           satuan:          item.satuan || getDefaultSatuan(item),
-          jml:             '0',
+          jml:             String(item.jml || 0),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
+          bpb_jml:          parseFloat(item.jml || 0),
+          bpb_harga:        parseFloat(item.harga || 0),
           ppn_mode:        defaultPpnMode,
         })));
       }
     } catch {
-      toast.error('Gagal memuat data GRN');
+      toast.error('Gagal memuat data BPB');
     }
   };
 
@@ -213,7 +244,15 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
   const totalPpn   = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
   const grandTotal = computedItems.reduce((s, i) => s + i.subtotal, 0);
 
-  const handleSubmit = async (shouldPrint = false) => {
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
+
+  const hasBpbDiff = () => idbpb && computedItems.some(i =>
+    Number(i.bpb_jml ?? i.jml) !== Number(i.jml) ||
+    Number(i.bpb_harga ?? i.harga) !== Number(i.harga)
+  );
+
+  const handleSubmit = async (approve = false) => {
+    if (isLocked) return toast.error('Pembelian yang sudah approve tidak bisa disimpan lagi');
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
     if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
     if (!supplier?.idsupplier) return toast.error('Supplier wajib dipilih');
@@ -229,6 +268,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
     }
 
     if (!autoGenerate && !kodebeli.trim()) return toast.error('Kode beli wajib diisi');
+    if (isEdit && hasBpbDiff()) {
+      const ok = window.confirm('Jumlah atau harga berbeda dengan BPB. Lanjutkan simpan perubahan?');
+      if (!ok) return;
+    }
     setLoading(true);
     try {
       const payload = {
@@ -239,8 +282,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
         grandtotal: grandTotal,
         bayar:      langsungLunas ? grandTotal : 0,
         langsung_lunas: langsungLunas,
-        idgrn:      idgrn || null,
-        kodegrn:    kodegrn || null,
+        idbpb:      idbpb || null,
+        kodebpb:    kodebpb || null,
+        jalurpembelian: idbpb ? 'PESANAN' : 'LANGSUNG',
+        approve,
         catatan:    catatan || null,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
@@ -258,20 +303,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
         res = await api.post('/beli', payload);
       }
 
-      toast.success(isEdit ? 'Pembelian berhasil diupdate!' : 'Pembelian berhasil disimpan!');
-
-      if (shouldPrint) {
-        try {
-          const idbeli = isEdit ? editData.idbeli : res.data.idbeli;
-          const { data: fullData } = await api.get(`/beli/${idbeli}`);
-          printFaktur(fullData, user);
-        } catch {
-          toast.error('Gagal memuat data untuk cetak');
-        }
-      }
+      toast.success(approve ? 'Pembelian berhasil disimpan dan diapprove!' : (isEdit ? 'Pembelian berhasil diupdate!' : 'Pembelian berhasil disimpan!'));
 
       if (onSuccess) onSuccess();
-      if (!isEdit) closeTab(tabId);
+      closeTab(tabId);
     } catch (err) {
       console.log(err)
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
@@ -289,7 +324,12 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodebeli || 'Pembelian'}` : 'Pembelian Baru'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodebeli || 'Pembelian'}` : 'Pembelian Baru'}</h2>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData?.status || 'DRAFT'] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+              {editData?.status || 'DRAFT'}
+            </span>
+          </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit transaksi pembelian' : 'Form input transaksi pembelian'}</p>
         </div>
       </div>
@@ -333,7 +373,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
               {/* Tanggal Transaksi */}
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
-                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(d.toISOString().slice(0, 10))}
+                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
                   options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                   className="flatpickr-input w-full" placeholder="Pilih tanggal" />
               </div>
@@ -356,23 +396,23 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
 
-              {/* Kode Referensi GRN — optional */}
+              {/* Kode Referensi BPB — optional */}
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode GRN (Referensi, Opsional)</label>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode BPB (Referensi, Opsional)</label>
                 <div className="flex items-center gap-2">
-                  <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-sm min-h-[38px] ${idgrn ? 'border-primary-100 bg-warm-50/40' : 'border-primary-100 bg-transparent'}`}>
+                  <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-sm min-h-[38px] ${idbpb ? 'border-primary-100 bg-warm-50/40' : 'border-primary-100 bg-transparent'}`}>
                     <FileText className="w-3.5 h-3.5 text-dark-300 shrink-0" />
-                    {kodegrn
-                      ? <span className="font-mono text-dark-500 text-xs">{kodegrn}</span>
-                      : <span className="text-dark-300 text-xs">Opsional — kosongkan jika tanpa referensi GRN</span>
+                    {kodebpb
+                      ? <span className="font-mono text-dark-500 text-xs">{kodebpb}</span>
+                      : <span className="text-dark-300 text-xs">Opsional — kosongkan jika tanpa referensi BPB</span>
                     }
                   </div>
-                  <button onClick={() => setShowGRNModal(true)}
+                  <button onClick={() => setShowBPBModal(true)}
                     className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
-                    Browse GRN
+                    Browse BPB
                   </button>
-                  {kodegrn && (
-                    <button onClick={() => { setIdgrn(null); setKodegrn(''); }}
+                  {kodebpb && (
+                    <button onClick={() => { setidbpb(null); setkodebpb(''); }}
                       className="p-2 rounded-xl border border-red-100 text-red-400 hover:bg-red-50 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -445,10 +485,9 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                     <th className="text-left   px-3 py-2.5 text-xs font-semibold text-dark-300 w-28">Kode</th>
                     <th className="text-left   px-3 py-2.5 text-xs font-semibold text-dark-300">Nama Barang</th>
                     <th className="text-left   px-3 py-2.5 text-xs font-semibold text-dark-300 w-28">Satuan</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-20">Stok</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-20">Jumlah</th>
-                    <th className="text-right  px-3 py-2.5 text-xs font-semibold text-dark-300 w-36">Harga Beli Sblm</th>
-                    <th className="text-right  px-3 py-2.5 text-xs font-semibold text-dark-300 w-36">Harga Beli</th>
+                    <th className="text-right  px-3 py-2.5 text-xs font-semibold text-dark-300 w-36">Harga Sblm</th>
+                    <th className="text-right  px-3 py-2.5 text-xs font-semibold text-dark-300 w-36">Harga</th>
                     <th className="text-right  px-3 py-2.5 text-xs font-semibold text-dark-300 w-32">Subtotal</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-36">PPN</th>
                     <th className="w-10"></th>
@@ -476,9 +515,6 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                             className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary-500/20">
                             {satuanOpts.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
-                        </td>
-                        <td className={`px-3 py-2.5 text-center font-mono text-xs font-semibold ${Number(rawItem.stok) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {Number(rawItem.stok || 0)}
                         </td>
                         <td className="px-3 py-2.5">
                           <input type="text" value={Number(rawItem.jml)}
@@ -537,14 +573,13 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0}
+                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0 || isLocked}
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
-                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0}
+                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
                   className="flex items-center gap-2 px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Printer className="w-4 h-4" />
-                  {loading ? 'Menyimpan...' : 'Simpan dan Cetak'}
+                  {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
                 </button>
                   <label className="flex items-center gap-2 cursor-pointer ml-2">
                     <input type="checkbox" checked={langsungLunas} onChange={e => setLangsungLunas(e.target.checked)}
@@ -559,10 +594,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
       </div>
 
       {/* ── Modals ── */}
-      {showGRNModal && (
-        <BrowseGRNModal
-          onSelect={handleSelectGRN}
-          onClose={() => setShowGRNModal(false)}
+      {showBPBModal && (
+        <BrowseBPBModal
+          onSelect={handleSelectBPB}
+          onClose={() => setShowBPBModal(false)}
         />
       )}
       {showSupplierModal && (

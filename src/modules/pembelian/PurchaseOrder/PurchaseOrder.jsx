@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
@@ -12,17 +12,25 @@ import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal } from '../../../lib/formHelpers';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const STATUS_BADGE = {
   DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
   APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
-  PARTIAL:   'bg-blue-50 text-blue-600 border-blue-100',
-  DONE:      'bg-primary-50 text-primary-600 border-primary-100',
+  CONFIRMED: 'bg-blue-50 text-blue-600 border-blue-100',
   CANCELLED: 'bg-red-50 text-red-400 border-red-100',
 };
 
 export default function PurchaseOrder() {
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
 
   const [list, setList]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -69,6 +77,18 @@ export default function PurchaseOrder() {
     }
   };
 
+  const handleRowClick = (po) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === po.idpo && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(po);
+      return;
+    }
+    lastRowClickRef.current = { id: po.idpo, at: now };
+    setSelectedId(po.idpo === selectedId ? null : po.idpo);
+  };
+
   const handleApprove = async (e, id) => {
     e.stopPropagation();
     const confirmed = await confirm({
@@ -104,6 +124,25 @@ export default function PurchaseOrder() {
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal membatalkan');
+    }
+  };
+
+  const handleUnapprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Batal Approve Purchase Order',
+      message: 'Kembalikan Purchase Order ini ke DRAFT?',
+      confirmText: 'Batal Approve',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/purchase-order/${id}/unapprove`);
+      toast.success('Approve Purchase Order dibatalkan');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
   };
 
@@ -153,17 +192,16 @@ export default function PurchaseOrder() {
               <option value="">Semua Status</option>
               <option value="DRAFT">DRAFT</option>
               <option value="APPROVED">APPROVED</option>
-              <option value="PARTIAL">PARTIAL</option>
-              <option value="DONE">DONE</option>
+              <option value="CONFIRMED">CONFIRMED</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal</label>
             <div className="flex items-center gap-1.5">
-              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(d.toISOString().slice(0, 10))} options={{ dateFormat: 'Y-m-d', locale: 'id' }} className="flatpickr-input flex-1 text-xs" placeholder="Dari" />
+              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(toDateInputValue(d))} options={{ dateFormat: 'Y-m-d', locale: 'id' }} className="flatpickr-input flex-1 text-xs" placeholder="Dari" />
               <span className="text-[10px] text-dark-300 shrink-0">s/d</span>
-              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(d.toISOString().slice(0, 10))} options={{ dateFormat: 'Y-m-d', locale: 'id' }} className="flatpickr-input flex-1 text-xs" placeholder="Sampai" />
+              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(toDateInputValue(d))} options={{ dateFormat: 'Y-m-d', locale: 'id' }} className="flatpickr-input flex-1 text-xs" placeholder="Sampai" />
             </div>
           </div>
         </div>
@@ -189,7 +227,7 @@ export default function PurchaseOrder() {
                 )}
                 {paginatedItems.map((po) => (
                   <tr key={po.idpo}
-                    onClick={() => setSelectedId(po.idpo === selectedId ? null : po.idpo)}
+                    onClick={() => handleRowClick(po)}
                     onDoubleClick={() => handleEdit(po)}
                     className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === po.idpo ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{po.kodepo}</td>
@@ -210,6 +248,11 @@ export default function PurchaseOrder() {
                               <XCircle className="w-3 h-3" /> Batal
                             </button>
                           </>
+                        )}
+                        {po.status === 'APPROVED' && (
+                          <button onClick={(e) => handleUnapprove(e, po.idpo)} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">
+                            <XCircle className="w-3 h-3" /> Batal Approve
+                          </button>
                         )}
                       </div>
                     </td>

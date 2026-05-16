@@ -106,7 +106,7 @@ export default function ReturBeli({ isActive }) {
   };
 
   const handleEdit = async (r) => {
-    if (r.status === 'VOID') return toast.error('Retur VOID tidak dapat diedit');
+    if (r.status === 'CANCELLED') return toast.error('Retur CANCELLED tidak dapat diedit');
     try {
       const { data } = await api.get(`/returbeli/${r.idreturbeli}`);
       openTab({
@@ -164,7 +164,7 @@ export default function ReturBeli({ isActive }) {
           <p className="text-sm text-dark-300">Catat retur / pengembalian barang ke supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'VOID' && (
+          {selectedRow && selectedRow.status !== 'CANCELLED' && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
@@ -256,7 +256,7 @@ export default function ReturBeli({ isActive }) {
                       onClick={() => handleRowClick(r)}
                       onDoubleClick={() => handleEdit(r)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
-                        r.status === 'VOID'
+                        r.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'
                           : isSelected
                             ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
@@ -269,13 +269,13 @@ export default function ReturBeli({ isActive }) {
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(r.total)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                          r.status === 'VOID' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                          r.status === 'CANCELLED' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
                         }`}>
-                          {r.status === 'VOID' ? 'VOID' : 'AKTIF'}
+                          {r.status === 'CANCELLED' ? 'CANCELLED' : 'APPROVED'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {r.status !== 'VOID' && (
+                        {r.status !== 'CANCELLED' && (
                           <button
                             onClick={(e) => handleCancel(e, r.idreturbeli)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">

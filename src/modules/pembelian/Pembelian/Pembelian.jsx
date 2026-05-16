@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
@@ -12,6 +12,14 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal, BrowseLokasiModal } from '../../../lib/formHelpers';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ─── Print utility ───────────────────────────────────────────────
 function printFaktur(data, user) {
@@ -75,9 +83,9 @@ ${items.map((item, i) => `<tr>
 // ─── Main Component ───────────────────────────────────────────────
 export default function Pembelian({ isActive }) {
   const user          = useAuthStore(s => s.user);
-  const openTab       = useTabStore(s => s.openTab);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
 
   const [beli, setBeli]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -119,7 +127,7 @@ export default function Pembelian({ isActive }) {
   };
 
   const handleEdit = async (b) => {
-    if (b.status === 'VOID') return toast.error('Pembelian VOID tidak dapat diedit');
+    if (b.status === 'CANCELLED') return toast.error('Pembelian CANCELLED tidak dapat diedit');
     try {
       const { data } = await api.get(`/beli/${b.idbeli}`);
       openOrFocusTab({
@@ -135,7 +143,17 @@ export default function Pembelian({ isActive }) {
     }
   };
 
-  const handleRowClick = (b) => setSelectedId(b.idbeli === selectedId ? null : b.idbeli);
+  const handleRowClick = (b) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === b.idbeli && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(b);
+      return;
+    }
+    lastRowClickRef.current = { id: b.idbeli, at: now };
+    setSelectedId(b.idbeli === selectedId ? null : b.idbeli);
+  };
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
@@ -192,7 +210,7 @@ export default function Pembelian({ isActive }) {
           <p className="text-sm text-dark-300">Catat pembelian barang dari supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'VOID' && (
+          {selectedRow && selectedRow.status !== 'CANCELLED' && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
@@ -271,11 +289,11 @@ export default function Pembelian({ isActive }) {
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal</label>
             <div className="flex items-center gap-1.5">
-              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(d.toISOString().slice(0, 10))}
+              <Flatpickr value={tglAwal} onChange={([d]) => setTglAwal(toDateInputValue(d))}
                 options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                 className="flatpickr-input flex-1 text-xs" placeholder="Dari tanggal" />
               <span className="text-[10px] text-dark-300 shrink-0">s/d</span>
-              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(d.toISOString().slice(0, 10))}
+              <Flatpickr value={tglAkhir} onChange={([d]) => setTglAkhir(toDateInputValue(d))}
                 options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                 className="flatpickr-input flex-1 text-xs" placeholder="Sampai tanggal" />
             </div>
@@ -313,7 +331,7 @@ export default function Pembelian({ isActive }) {
                       onClick={() => handleRowClick(b)}
                       onDoubleClick={() => handleEdit(b)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
-                        b.status === 'VOID'
+                        b.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'
                           : isSelected
                             ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
@@ -330,16 +348,16 @@ export default function Pembelian({ isActive }) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {b.status === 'VOID' ? (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">VOID</span>
-                        ) : b.statuslunas === 'LUNAS' ? (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">LUNAS</span>
+                        {b.status === 'CANCELLED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">CANCELLED</span>
+                        ) : b.status === 'APPROVED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">APPROVED</span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">BELUM LUNAS</span>
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">DRAFT</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {b.status !== 'VOID' && (
+                        {b.status !== 'CANCELLED' && (
                           <button
                             onClick={(e) => handleCancel(e, b.idbeli)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">

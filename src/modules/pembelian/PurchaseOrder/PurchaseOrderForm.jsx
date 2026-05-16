@@ -9,6 +9,21 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const STATUS_BADGE = {
+  DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CONFIRMED: 'bg-blue-50 text-blue-600 border-blue-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
+
 export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
   const lokasiAuth = useAuthStore(s => s.lokasi);
@@ -22,7 +37,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
       ? (editData.idlokasi ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi } : null)
       : (lokasiAuth || null)
   );
-  const [tgltrans, setTgltrans] = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [tgltrans, setTgltrans] = useState(toDateInputValue(editData?.tgltrans));
   const [supplier, setSupplier] = useState(
     isEdit
       ? (editData.idsupplier ? { idsupplier: editData.idsupplier, kodesupplier: editData.kodesupplier, namasupplier: editData.namasupplier, alamat: editData.salamat, hp: editData.shp } : null)
@@ -56,6 +71,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
   const [showBarangModal, setShowBarangModal]     = useState(false);
   const [loading, setLoading] = useState(false);
   const ppnPercent = user?.ppn || 11;
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
 
   const addBarang = (b) => {
     if (items.find(i => i.idbarang === b.idbarang)) {
@@ -100,7 +116,8 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
   const totalPpn   = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
   const grandTotal = computedItems.reduce((s, i) => s + i.subtotal, 0);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (approve = false) => {
+    if (isLocked) return toast.error('PO yang sudah approve tidak bisa disimpan lagi');
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
     if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
     if (!supplier?.idsupplier) return toast.error('Supplier wajib dipilih');
@@ -115,6 +132,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
         idsupplier: supplier.idsupplier,
         idlokasi:   lokasi.idlokasi,
         catatan:    catatan || null,
+        approve,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
           jml:      i.jml,
@@ -126,14 +144,14 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
 
       if (isEdit) {
         await api.put(`/purchase-order/${editData.idpo}`, payload);
-        toast.success('Purchase Order berhasil diupdate!');
+        toast.success(approve ? 'Purchase Order berhasil diupdate dan diapprove!' : 'Purchase Order berhasil diupdate!');
       } else {
         await api.post('/purchase-order', payload);
-        toast.success('Purchase Order berhasil dibuat!');
+        toast.success(approve ? 'Purchase Order berhasil dibuat dan diapprove!' : 'Purchase Order berhasil dibuat!');
       }
 
       if (onSuccess) onSuccess();
-      if (!isEdit) closeTab(tabId);
+      closeTab(tabId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
     } finally {
@@ -150,7 +168,14 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodepo || 'Purchase Order'}` : 'Purchase Order Baru'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodepo || 'Purchase Order'}` : 'Purchase Order Baru'}</h2>
+            {isEdit && editData?.status && (
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                {editData.status}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit purchase order' : 'Buat purchase order ke supplier'}</p>
         </div>
       </div>
@@ -167,7 +192,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
 
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
-                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(d.toISOString().slice(0, 10))}
+                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
                   options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                   className="flatpickr-input w-full" placeholder="Pilih tanggal" />
               </div>
@@ -245,7 +270,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
               </button>
             </div>
             <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[960px] text-sm">
                 <thead>
                   <tr className="border-b border-primary-50 bg-warm-50/30">
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-10">No</th>
@@ -335,10 +360,16 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
                   </span>
                 </div>
               </div>
-              <button onClick={handleSubmit} disabled={loading || items.length === 0}
-                className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Menyimpan...' : 'Simpan'}
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0 || isLocked}
+                  className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
+                  className="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
+                </button>
+              </div>
             </div>
           </div>
 

@@ -225,11 +225,16 @@ export function BrowseLokasiModal({ onSelect, onClose }) {
 export function BrowsePOModal({ onSelect, onClose }) {
   const [poList, setPoList] = useState([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const params = { available: 1 };
     if (search) params.search = search;
-    api.get('/purchase-order', { params }).then(r => setPoList(r.data)).catch(() => setPoList([]));
+    api.get('/purchase-order', { params })
+      .then(r => setPoList(r.data))
+      .catch(() => setPoList([]))
+      .finally(() => setLoading(false));
   }, [search]);
 
   return (
@@ -246,10 +251,13 @@ export function BrowsePOModal({ onSelect, onClose }) {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
           </div>
           <div className="max-h-72 overflow-y-auto scrollbar-thin">
-            {poList.length === 0 && (
-              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada PO ditemukan' : 'Memuat...'}</p>
+            {loading && (
+              <p className="text-sm text-dark-300 text-center py-8">Memuat...</p>
             )}
-            {poList.length > 0 && (
+            {!loading && poList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada PO ditemukan' : 'Tidak ada PO yang bisa dipilih'}</p>
+            )}
+            {!loading && poList.length > 0 && (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-primary-50 bg-warm-50">
@@ -279,34 +287,42 @@ export function BrowsePOModal({ onSelect, onClose }) {
   );
 }
 
-export function BrowseGRNModal({ onSelect, onClose }) {
-  const [grnList, setGrnList] = useState([]);
+export function BrowseBPBModal({ onSelect, onClose }) {
+  const [bpbList, setBpbList] = useState([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const params = { available: 1 };
     if (search) params.search = search;
-    api.get('/grn', { params }).then(r => setGrnList(r.data)).catch(() => setGrnList([]));
+    api.get('/bpb', { params })
+      .then(r => setBpbList(r.data))
+      .catch(() => setBpbList([]))
+      .finally(() => setLoading(false));
   }, [search]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4" onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-primary-50">
-          <h3 className="text-sm font-bold text-dark-500">Pilih GRN (Goods Received Note)</h3>
+          <h3 className="text-sm font-bold text-dark-500">Pilih BPB (Bukti Penerimaan Barang)</h3>
         </div>
         <div className="p-4">
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-300" />
             <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
-              placeholder="Cari GRN..." autoFocus
+              placeholder="Cari BPB..." autoFocus
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
           </div>
           <div className="max-h-72 overflow-y-auto scrollbar-thin">
-            {grnList.length === 0 && (
-              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada GRN ditemukan' : 'Memuat...'}</p>
+            {loading && (
+              <p className="text-sm text-dark-300 text-center py-8">Memuat...</p>
             )}
-            {grnList.length > 0 && (
+            {!loading && bpbList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada BPB ditemukan' : 'Tidak ada BPB yang bisa dipilih'}</p>
+            )}
+            {!loading && bpbList.length > 0 && (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-primary-50 bg-warm-50">
@@ -317,13 +333,13 @@ export function BrowseGRNModal({ onSelect, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {grnList.map(grn => (
-                    <tr key={grn.idgrn} onClick={() => onSelect(grn)}
+                  {bpbList.map(BPB => (
+                    <tr key={BPB.idbpb} onClick={() => onSelect(BPB)}
                       className="border-b border-primary-50/50 hover:bg-warm-50 cursor-pointer transition-colors">
-                      <td className="px-3 py-2.5 text-xs font-mono text-dark-400">{grn.kodegrn}</td>
-                      <td className="px-3 py-2.5 text-xs text-dark-400">{String(grn.tgltrans || '').slice(0, 10)}</td>
-                      <td className="px-3 py-2.5 text-sm text-dark-500">{grn.namasupplier}</td>
-                      <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-accent-600">{formatRupiah(grn.grandtotal || 0)}</td>
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-400">{BPB.kodebpb}</td>
+                      <td className="px-3 py-2.5 text-xs text-dark-400">{String(BPB.tgltrans || '').slice(0, 10)}</td>
+                      <td className="px-3 py-2.5 text-sm text-dark-500">{BPB.namasupplier}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-mono font-semibold text-accent-600">{formatRupiah(BPB.grandtotal || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -339,11 +355,16 @@ export function BrowseGRNModal({ onSelect, onClose }) {
 export function BrowseBeliModal({ onSelect, onClose }) {
   const [beliList, setBeliList] = useState([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const params = { available: 1 };
     if (search) params.search = search;
-    api.get('/beli', { params }).then(r => setBeliList(r.data)).catch(() => setBeliList([]));
+    api.get('/beli', { params })
+      .then(r => setBeliList(r.data))
+      .catch(() => setBeliList([]))
+      .finally(() => setLoading(false));
   }, [search]);
 
   return (
@@ -360,10 +381,13 @@ export function BrowseBeliModal({ onSelect, onClose }) {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
           </div>
           <div className="max-h-72 overflow-y-auto scrollbar-thin">
-            {beliList.length === 0 && (
-              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada pembelian ditemukan' : 'Memuat...'}</p>
+            {loading && (
+              <p className="text-sm text-dark-300 text-center py-8">Memuat...</p>
             )}
-            {beliList.length > 0 && (
+            {!loading && beliList.length === 0 && (
+              <p className="text-sm text-dark-300 text-center py-8">{search ? 'Tidak ada pembelian ditemukan' : 'Tidak ada pembelian yang bisa dipilih'}</p>
+            )}
+            {!loading && beliList.length > 0 && (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-primary-50 bg-warm-50">

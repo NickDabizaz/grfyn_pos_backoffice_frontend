@@ -9,7 +9,22 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowsePOModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 
-export default function GRNForm({ onSuccess, tabId, editData }) {
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const STATUS_BADGE = {
+  DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CONFIRMED: 'bg-blue-50 text-blue-600 border-blue-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
+
+export default function BPBForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
@@ -24,7 +39,7 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
       ? (editData.idlokasi ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi } : null)
       : (lokasiAuth || null)
   );
-  const [tgltrans, setTgltrans] = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [tgltrans, setTgltrans] = useState(toDateInputValue(editData?.tgltrans));
   const [supplier, setSupplier] = useState(
     isEdit
       ? (editData.idsupplier ? { idsupplier: editData.idsupplier, kodesupplier: editData.kodesupplier, namasupplier: editData.namasupplier, alamat: editData.salamat, hp: editData.shp } : null)
@@ -151,7 +166,10 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
   const totalPpn   = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
   const grandTotal = computedItems.reduce((s, i) => s + i.subtotal, 0);
 
-  const handleSubmit = async () => {
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
+
+  const handleSubmit = async (approve = false) => {
+    if (isLocked) return toast.error('BPB yang sudah approve tidak bisa disimpan lagi');
     if (!idpo) return toast.error('Kode PO (Referensi) wajib dipilih');
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
     if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
@@ -168,6 +186,7 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
         idlokasi:   lokasi.idlokasi,
         idpo,
         catatan:    catatan || null,
+        approve,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
           idpodtl:  i.idpodtl || null,
@@ -179,15 +198,15 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
       };
 
       if (isEdit) {
-        await api.put(`/grn/${editData.idgrn}`, payload);
-        toast.success('GRN berhasil diupdate!');
+        await api.put(`/bpb/${editData.idbpb}`, payload);
+        toast.success(approve ? 'BPB berhasil disimpan dan diapprove!' : 'BPB berhasil diupdate!');
       } else {
-        await api.post('/grn', payload);
-        toast.success('GRN berhasil dibuat!');
+        await api.post('/bpb', payload);
+        toast.success(approve ? 'BPB berhasil disimpan dan diapprove!' : 'BPB berhasil dibuat!');
       }
 
       if (onSuccess) onSuccess();
-      if (!isEdit) closeTab(tabId);
+      closeTab(tabId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
     } finally {
@@ -203,7 +222,12 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodegrn || 'GRN'}` : 'GRN Baru'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodebpb || 'BPB'}` : 'BPB Baru'}</h2>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData?.status || 'DRAFT'] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+              {editData?.status || 'DRAFT'}
+            </span>
+          </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit penerimaan barang' : 'Penerimaan barang berdasarkan PO'}</p>
         </div>
       </div>
@@ -246,7 +270,7 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
 
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
-                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(d.toISOString().slice(0, 10))}
+                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
                   options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                   className="flatpickr-input w-full" placeholder="Pilih tanggal" />
               </div>
@@ -414,10 +438,16 @@ export default function GRNForm({ onSuccess, tabId, editData }) {
                   </span>
                 </div>
               </div>
-              <button onClick={handleSubmit} disabled={loading || items.length === 0}
-                className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Menyimpan...' : 'Simpan'}
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0 || isLocked}
+                  className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
+                  className="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
+                </button>
+              </div>
             </div>
           </div>
 

@@ -17,7 +17,7 @@ const User               = lazy(() => import('../modules/master/User/User'));
 const Lokasi             = lazy(() => import('../modules/master/Lokasi/Lokasi'));
 const Pembelian          = lazy(() => import('../modules/pembelian/Pembelian/Pembelian'));
 const PurchaseOrder      = lazy(() => import('../modules/pembelian/PurchaseOrder/PurchaseOrder'));
-const GRN                = lazy(() => import('../modules/pembelian/GRN/GRN'));
+const BPB                = lazy(() => import('../modules/pembelian/BPB/BPB'));
 const Penjualan          = lazy(() => import('../modules/penjualan/Penjualan/Penjualan'));
 const ReturJual          = lazy(() => import('../modules/penjualan/ReturJual/ReturJual'));
 const ReturBeli          = lazy(() => import('../modules/pembelian/ReturBeli/ReturBeli'));
@@ -63,9 +63,9 @@ const registry = {
   'master.user'     : { component: User,      label: 'User',     icon: UserCog },
   'master.lokasi'   : { component: Lokasi,    label: 'Lokasi',   icon: MapPin },
   'pembelian'       : { component: Pembelian, label: 'Pembelian', icon: ShoppingBag },
-  'pembelian.transaksi': { component: Pembelian, label: 'Transaksi Beli', icon: ShoppingBag },
-  'pembelian.po'    : { component: PurchaseOrder, label: 'Purchase Order', icon: ShoppingBag },
-  'pembelian.grn'   : { component: GRN, label: 'Good Receipt Note', icon: ShoppingBag },
+  'pembelian.transaksi': { component: Pembelian, label: 'Pembelian', icon: ShoppingBag },
+  'pembelian.po'    : { component: PurchaseOrder, label: 'Purchase Order (PO)', icon: ShoppingBag },
+  'pembelian.bpb'   : { component: BPB, label: 'Bukti Penerimaan Barang (BPB)', icon: ShoppingBag },
   'pembelian.retur' : { component: ReturBeli, label: 'Retur Pembelian', icon: Undo2 },
   'penjualan'       : { component: Penjualan, label: 'Penjualan', icon: ReceiptText },
   'penjualan.transaksi'  : { component: Penjualan,  label: 'Transaksi Jual',   icon: ReceiptText },
