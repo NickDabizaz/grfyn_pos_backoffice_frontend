@@ -3,7 +3,7 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, Printer, Pencil, Undo2, XCircle } from 'lucide-react';
+import { Plus, Search, RefreshCw, Printer, Pencil, Undo2, CheckCircle, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -68,6 +68,8 @@ ${items.map((item, i) => `<tr>
 export default function ReturBeli({ isActive }) {
   const user    = useAuthStore(s => s.user);
   const openTab = useTabStore(s => s.openTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
+  const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.retur']);
   const confirm = useConfirm();
 
   const [retur, setRetur]             = useState([]);
@@ -90,7 +92,7 @@ export default function ReturBeli({ isActive }) {
     api.get('/returbeli', { params }).then(r => setRetur(r.data)).catch(() => {});
   }, [filterKode, filterSupplier, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadRetur(); }, [loadRetur]);
+  useEffect(() => { loadRetur(); }, [loadRetur, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(retur, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterSupplier, tglAwal, tglAkhir]);
@@ -106,8 +108,6 @@ export default function ReturBeli({ isActive }) {
   };
 
   const handleEdit = async (r) => {
-    if (r.status === 'CANCELLED') return toast.error('Retur CANCELLED tidak dapat diedit');
-    if (r.status !== 'DRAFT') return toast.error('Hanya retur DRAFT yang dapat diedit');
     try {
       const { data } = await api.get(`/returbeli/${r.idreturbeli}`);
       openTab({
@@ -119,6 +119,27 @@ export default function ReturBeli({ isActive }) {
       });
     } catch {
       toast.error('Gagal memuat data retur');
+    }
+  };
+
+  const handleApprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Approve Retur Pembelian',
+      message: 'Approve Retur Pembelian ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/returbeli/${id}/approve`);
+      toast.success('Retur Pembelian diapprove');
+      loadRetur();
+      requestRefresh('pembelian.transaksi');
+      requestRefresh('pembelian');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal approve');
     }
   };
 
@@ -139,6 +160,8 @@ export default function ReturBeli({ isActive }) {
       toast.success('Retur dibatalkan');
       if (selectedId === id) setSelectedId(null);
       loadRetur();
+      requestRefresh('pembelian.transaksi');
+      requestRefresh('pembelian');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal');
     }
@@ -158,6 +181,8 @@ export default function ReturBeli({ isActive }) {
       await api.put(`/returbeli/${id}/unapprove`);
       toast.success('Approve Retur Pembelian dibatalkan');
       loadRetur();
+      requestRefresh('pembelian.transaksi');
+      requestRefresh('pembelian');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
@@ -308,11 +333,18 @@ export default function ReturBeli({ isActive }) {
                             </button>
                           )}
                           {r.status === 'DRAFT' && (
-                            <button
-                              onClick={(e) => handleCancel(e, r.idreturbeli)}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                              Hapus
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => handleApprove(e, r.idreturbeli)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                                <CheckCircle className="w-3 h-3" /> Approve
+                              </button>
+                              <button
+                                onClick={(e) => handleCancel(e, r.idreturbeli)}
+                                className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                                Hapus
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>

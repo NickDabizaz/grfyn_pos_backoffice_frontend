@@ -3,7 +3,7 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, Printer, Pencil, XCircle } from 'lucide-react';
+import { Plus, Search, RefreshCw, Printer, Pencil, CheckCircle, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -84,6 +84,8 @@ ${items.map((item, i) => `<tr>
 export default function Pembelian({ isActive }) {
   const user          = useAuthStore(s => s.user);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
+  const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.transaksi'] || s.refreshTokens?.['pembelian']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
 
@@ -111,7 +113,7 @@ export default function Pembelian({ isActive }) {
     api.get('/beli', { params }).then(r => setBeli(r.data)).catch(() => {});
   }, [filterKode, filterSupplier, filterLokasi, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadBeli(); }, [loadBeli]);
+  useEffect(() => { loadBeli(); }, [loadBeli, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(beli, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterSupplier, filterLokasi, tglAwal, tglAkhir]);
@@ -127,7 +129,6 @@ export default function Pembelian({ isActive }) {
   };
 
   const handleEdit = async (b) => {
-    if (b.status === 'CANCELLED') return toast.error('Pembelian CANCELLED tidak dapat diedit');
     try {
       const { data } = await api.get(`/beli/${b.idbeli}`);
       openOrFocusTab({
@@ -140,6 +141,26 @@ export default function Pembelian({ isActive }) {
       });
     } catch {
       toast.error('Gagal memuat data pembelian');
+    }
+  };
+
+  const handleApprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Approve Pembelian',
+      message: 'Approve Pembelian ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/beli/${id}/approve`);
+      toast.success('Pembelian diapprove');
+      loadBeli();
+      requestRefresh('pembelian.bpb');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal approve');
     }
   };
 
@@ -170,6 +191,7 @@ export default function Pembelian({ isActive }) {
       toast.success('Pembelian dibatalkan');
       if (selectedId === id) setSelectedId(null);
       loadBeli();
+      requestRefresh('pembelian.bpb');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal');
     }
@@ -195,6 +217,7 @@ export default function Pembelian({ isActive }) {
       await api.put(`/beli/${id}/unapprove`);
       toast.success('Approve pembelian dibatalkan');
       loadBeli();
+      requestRefresh('pembelian.bpb');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
@@ -367,6 +390,8 @@ export default function Pembelian({ isActive }) {
                       <td className="px-4 py-3 text-center">
                         {b.status === 'CANCELLED' ? (
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">CANCELLED</span>
+                        ) : b.status === 'CONFIRMED' ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">CONFIRMED</span>
                         ) : b.status === 'APPROVED' ? (
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">APPROVED</span>
                         ) : (
@@ -382,11 +407,18 @@ export default function Pembelian({ isActive }) {
                           </button>
                         )}
                         {b.status === 'DRAFT' && (
-                          <button
-                            onClick={(e) => handleCancel(e, b.idbeli)}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                            Hapus
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => handleApprove(e, b.idbeli)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                              <CheckCircle className="w-3 h-3" /> Approve
+                            </button>
+                            <button
+                              onClick={(e) => handleCancel(e, b.idbeli)}
+                              className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                              Hapus
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

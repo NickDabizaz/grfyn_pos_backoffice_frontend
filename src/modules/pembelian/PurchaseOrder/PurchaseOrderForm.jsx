@@ -28,9 +28,10 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
 
   const isEdit = !!editData;
-  const defaultPpnMode = (user?.ppn ?? 11) > 0 ? 'INCLUDE' : 'TIDAK_PAKAI';
+  const defaultPpnMode = user?.pakaiPPN !== 'TIDAK' ? 'INCLUDE' : 'TIDAK_PAKAI';
 
   const [lokasi, setLokasi]     = useState(
     isEdit
@@ -58,7 +59,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
           konversi2:       item.konversi2    || 0,
           stok:            0,
           satuan:          item.satuan || getDefaultSatuan(item),
-          jml:             String(item.jml),
+          jml:             String(parseInt(item.jml, 10) || 0),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
           ppn_mode:        item.ppn_mode || defaultPpnMode,
@@ -151,6 +152,7 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
       }
 
       if (onSuccess) onSuccess();
+      requestRefresh('pembelian.po');
       closeTab(tabId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
@@ -190,14 +192,14 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
             </div>
             <div className="p-5 grid grid-cols-2 gap-4">
 
-              <div>
+              <div className="order-1">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
                 <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
                   options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                   className="flatpickr-input w-full" placeholder="Pilih tanggal" />
               </div>
 
-              <div>
+              <div className="order-2">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Lokasi</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
@@ -214,14 +216,14 @@ export default function PurchaseOrderForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 order-4">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Catatan</label>
                 <textarea value={catatan} onChange={e => setCatatan(e.target.value)} rows={2}
                   placeholder="Opsional..."
                   className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none" />
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 order-3">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Supplier</label>
                 <div className="flex items-start gap-3">
                   <button onClick={() => setShowSupplierModal(true)}

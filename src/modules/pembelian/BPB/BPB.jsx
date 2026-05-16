@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, XCircle } from 'lucide-react';
+import { Plus, Search, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -29,6 +29,8 @@ const STATUS_BADGE = {
 
 export default function BPB() {
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
+  const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.bpb']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
 
@@ -48,7 +50,7 @@ export default function BPB() {
     api.get('/bpb', { params }).then(r => setList(r.data)).catch(() => {});
   }, [filterKode, filterSupplier, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(list, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterSupplier, tglAwal, tglAkhir]);
@@ -87,6 +89,26 @@ export default function BPB() {
     setSelectedId(g.idbpb === selectedId ? null : g.idbpb);
   };
 
+  const handleApprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Approve BPB',
+      message: 'Approve BPB ini?',
+      confirmText: 'Approve',
+      cancelText: 'Batal',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/bpb/${id}/approve`);
+      toast.success('BPB diapprove');
+      loadData();
+      requestRefresh('pembelian.po');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal approve');
+    }
+  };
+
   const handleUnapprove = async (e, id) => {
     e.stopPropagation();
     const confirmed = await confirm({
@@ -101,6 +123,7 @@ export default function BPB() {
       await api.put(`/bpb/${id}/unapprove`);
       toast.success('Approve BPB dibatalkan');
       loadData();
+      requestRefresh('pembelian.po');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal batal approve');
     }
@@ -194,6 +217,12 @@ export default function BPB() {
                           <button onClick={(e) => handleUnapprove(e, g.idbpb)}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">
                             <XCircle className="w-3 h-3" /> Batal Approve
+                          </button>
+                        )}
+                        {g.status === 'DRAFT' && (
+                          <button onClick={(e) => handleApprove(e, g.idbpb)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
+                            <CheckCircle className="w-3 h-3" /> Approve
                           </button>
                         )}
                       </div>

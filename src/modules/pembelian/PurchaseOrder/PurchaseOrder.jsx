@@ -29,6 +29,7 @@ const STATUS_BADGE = {
 
 export default function PurchaseOrder() {
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.po']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
 
@@ -50,7 +51,7 @@ export default function PurchaseOrder() {
     api.get('/purchase-order', { params }).then(r => setList(r.data)).catch(() => {});
   }, [filterKode, filterSupplier, filterStatus, tglAwal, tglAkhir]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData, refreshToken]);
 
   const { page, setPage, totalPages, paginatedItems, resetPage } = usePagination(list, 20);
   useEffect(() => { resetPage(); }, [filterKode, filterSupplier, filterStatus, tglAwal, tglAkhir]);

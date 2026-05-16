@@ -9,6 +9,14 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowseBeliModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 
+function toDateInputValue(value) {
+  if (!value) return today();
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const STATUS_BADGE = {
   DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
   APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -73,14 +81,15 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
+  const requestRefresh = useTabStore(s => s.requestRefresh);
   const closeCurrentTab = () => {
     useTabStore.getState().closeTab(tabId);
   };
 
   const isEdit = !!editData;
-  const defaultPpnMode = (user?.ppn ?? 11) > 0 ? 'INCLUDE' : 'TIDAK_PAKAI';
+  const defaultPpnMode = user?.pakaiPPN !== 'TIDAK' ? 'INCLUDE' : 'TIDAK_PAKAI';
 
-  const [tgltrans, setTgltrans]     = useState(editData?.tgltrans ? String(editData.tgltrans).slice(0, 10) : today());
+  const [tgltrans, setTgltrans]     = useState(toDateInputValue(editData?.tgltrans));
   const [lokasi, setLokasi]         = useState(
     isEdit
       ? (editData.idlokasi ? { idlokasi: editData.idlokasi, namalokasi: editData.namalokasi, kodelokasi: editData.kodelokasi } : null)
@@ -108,7 +117,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
           konversi2:       item.konversi2    || 0,
           stok:            item.stok         || 0,
           satuan:          item.satuan || getDefaultSatuan(item),
-          jml:             String(item.jml),
+          jml:             String(parseInt(item.jml, 10) || 0),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
           ppn_mode:        item.ppn_mode || defaultPpnMode,
@@ -256,6 +265,8 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
 
       try {
         if (onSuccess) onSuccess();
+        requestRefresh('pembelian.transaksi');
+        requestRefresh('pembelian');
       } finally {
         closeCurrentTab();
       }
@@ -279,9 +290,11 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodereturbeli || 'Retur'}` : 'Retur Pembelian Baru'}</h2>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData?.status || 'DRAFT'] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-              {editData?.status || 'DRAFT'}
-            </span>
+            {isEdit && editData?.status && (
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                {editData.status}
+              </span>
+            )}
           </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit retur pembelian' : 'Form input retur pembelian'}</p>
         </div>
@@ -298,18 +311,18 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
             <div className="p-5 grid grid-cols-2 gap-4">
 
               {/* Tanggal Transaksi */}
-              <div>
+              <div className="order-1">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
-                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(d.toISOString().slice(0, 10))}
+                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
                   options={{ dateFormat: 'Y-m-d', locale: 'id' }}
                   className="flatpickr-input w-full" placeholder="Pilih tanggal" />
               </div>
 
               {/* Empty cell */}
-              <div />
+              <div className="hidden" />
 
               {/* Lokasi */}
-              <div>
+              <div className="order-2">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Lokasi</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
@@ -327,7 +340,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
               </div>
 
               {/* Supplier — spans full width */}
-              <div className="col-span-2">
+              <div className="col-span-2 order-4">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Supplier</label>
                 <div className="flex items-start gap-3">
                   <button onClick={() => setShowSupplierModal(true)}
@@ -357,7 +370,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
               </div>
 
               {/* Kode Referensi (Pembelian) — browse modal */}
-              <div className="col-span-2">
+              <div className="col-span-2 order-3">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode Referensi Pembelian (Opsional)</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 flex items-center px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
@@ -378,7 +391,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
               </div>
 
               {/* Catatan */}
-              <div className="col-span-2">
+              <div className="col-span-2 order-5">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Catatan (Opsional)</label>
                 <textarea value={catatan} onChange={e => setCatatan(e.target.value)}
                   placeholder="Tulis catatan atau keterangan tambahan..."
