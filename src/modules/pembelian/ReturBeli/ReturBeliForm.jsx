@@ -3,11 +3,17 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Trash2, MapPin, Users, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Trash2, MapPin, Users, Plus } from 'lucide-react';
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowseBeliModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+
+const STATUS_BADGE = {
+  DRAFT:     'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
 
 function printNotaRetur(data, user) {
   const items = data.items || [];
@@ -67,6 +73,9 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
   const user       = useAuthStore(s => s.user);
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
+  const closeCurrentTab = () => {
+    useTabStore.getState().closeTab(tabId);
+  };
 
   const isEdit = !!editData;
   const defaultPpnMode = (user?.ppn ?? 11) > 0 ? 'INCLUDE' : 'TIDAK_PAKAI';
@@ -143,7 +152,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
           konversi2:       item.konversi2    || 0,
           stok:            item.stok         || 0,
           satuan:          item.satuan || getDefaultSatuan(item),
-          jml:             '0',
+          jml:             String(item.jml || 1),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
           ppn_mode:        defaultPpnMode,
@@ -174,7 +183,7 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
       konversi2:    b.konversi2    || 0,
       stok:         b.stok         || 0,
       satuan:       getDefaultSatuan(b),
-      jml:          '0',
+      jml:          '1',
       harga_sebelumnya: hargaSebelumnya,
       harga:        String(hargaSebelumnya || ''),
       ppn_mode:     defaultPpnMode,
@@ -201,11 +210,13 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
   const totalPpn = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
   const total    = computedItems.reduce((s, i) => s + i.subtotal, 0);
 
-  const handleSubmit = async (shouldPrint = false) => {
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
+
+  const handleSubmit = async (approve = false) => {
+    if (isLocked) return toast.error('Retur pembelian yang sudah approve tidak bisa disimpan lagi');
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
     if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
     if (!supplier?.idsupplier) return toast.error('Supplier wajib dipilih');
-    if (!idbeli) return toast.error('Kode Beli (Referensi) wajib dipilih');
 
     const parsedItems = items.map(i => {
       const n = Number(i.jml);
@@ -222,10 +233,12 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
       const payload = {
         tgltrans,
         idbeli:     idbeli,
+        kodebeli:   kodebeli || null,
         idlokasi:   lokasi.idlokasi,
         idsupplier: supplier.idsupplier,
         catatan:    catatan || null,
         total:      total,
+        approve,
         items: computedItems.map(i => ({
           idbarang: i.idbarang,
           jml:      i.jml,
@@ -235,27 +248,18 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
         })),
       };
 
-      let res;
       if (isEdit) {
-        res = await api.put(`/returbeli/${editData.idreturbeli}`, payload);
+        await api.put(`/returbeli/${editData.idreturbeli}`, payload);
       } else {
-        res = await api.post('/returbeli', payload);
+        await api.post('/returbeli', payload);
       }
 
-      toast.success(isEdit ? 'Retur pembelian berhasil diupdate!' : 'Retur pembelian berhasil disimpan!');
-
-      if (shouldPrint) {
-        try {
-          const idreturbeli = isEdit ? editData.idreturbeli : res.data.idreturbeli;
-          const { data: fullData } = await api.get(`/returbeli/${idreturbeli}`);
-          printNotaRetur(fullData, user);
-        } catch {
-          toast.error('Gagal memuat data untuk cetak');
-        }
+      try {
+        if (onSuccess) onSuccess();
+      } finally {
+        closeCurrentTab();
       }
-
-      if (onSuccess) onSuccess();
-      if (!isEdit) closeTab(tabId);
+      toast.success(approve ? 'Retur pembelian berhasil disimpan dan diapprove!' : (isEdit ? 'Retur pembelian berhasil diupdate!' : 'Retur pembelian berhasil disimpan!'));
     } catch (err) {
       console.log(err);
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
@@ -269,11 +273,16 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
 
       {/* Page header */}
       <div className="flex items-center gap-3 px-6 pt-4 pb-3 border-b border-primary-50 shrink-0">
-        <button onClick={() => closeTab(tabId)} className="p-1.5 rounded-lg hover:bg-warm-50 text-dark-400">
+        <button onClick={closeCurrentTab} className="p-1.5 rounded-lg hover:bg-warm-50 text-dark-400">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodereturbeli || 'Retur'}` : 'Retur Pembelian Baru'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodereturbeli || 'Retur'}` : 'Retur Pembelian Baru'}</h2>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData?.status || 'DRAFT'] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+              {editData?.status || 'DRAFT'}
+            </span>
+          </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit retur pembelian' : 'Form input retur pembelian'}</p>
         </div>
       </div>
@@ -349,17 +358,17 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
 
               {/* Kode Referensi (Pembelian) — browse modal */}
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode Referensi (Pembelian)</label>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Kode Referensi Pembelian (Opsional)</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 flex items-center px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
                     {kodebeli
                       ? <span className="text-dark-500 font-mono">{kodebeli}</span>
-                      : <span className="text-dark-300">Pilih Pembelian...</span>
+                      : <span className="text-dark-300">Kosongkan jika retur tanpa referensi pembelian</span>
                     }
                   </div>
                   <button onClick={() => setShowBeliModal(true)}
                     className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
-                    Browse
+                    Browse Pembelian
                   </button>
                   {kodebeli && (
                     <button onClick={() => { setIdbeli(null); setKodebeli(''); setItems([]); }}
@@ -496,14 +505,13 @@ export default function ReturBeliForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0}
+                <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0 || isLocked}
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
-                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0}
+                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
                   className="flex items-center gap-2 px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Printer className="w-4 h-4" />
-                  {loading ? 'Menyimpan...' : 'Simpan dan Cetak'}
+                  {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
                 </button>
               </div>
             </div>

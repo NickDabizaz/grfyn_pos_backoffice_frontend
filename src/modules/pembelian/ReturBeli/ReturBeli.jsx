@@ -3,7 +3,7 @@ import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, Printer, Pencil, Undo2 } from 'lucide-react';
+import { Plus, Search, RefreshCw, Printer, Pencil, Undo2, XCircle } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -107,6 +107,7 @@ export default function ReturBeli({ isActive }) {
 
   const handleEdit = async (r) => {
     if (r.status === 'CANCELLED') return toast.error('Retur CANCELLED tidak dapat diedit');
+    if (r.status !== 'DRAFT') return toast.error('Hanya retur DRAFT yang dapat diedit');
     try {
       const { data } = await api.get(`/returbeli/${r.idreturbeli}`);
       openTab({
@@ -143,6 +144,25 @@ export default function ReturBeli({ isActive }) {
     }
   };
 
+  const handleUnapprove = async (e, id) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Batal Approve Retur Pembelian',
+      message: 'Kembalikan Retur Pembelian ini ke DRAFT? Stok dan kartu hutang retur akan dibalik.',
+      confirmText: 'Batal Approve',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/returbeli/${id}/unapprove`);
+      toast.success('Approve Retur Pembelian dibatalkan');
+      loadRetur();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal batal approve');
+    }
+  };
+
   const handleCetak = async () => {
     if (!selectedId) return;
     try {
@@ -164,7 +184,7 @@ export default function ReturBeli({ isActive }) {
           <p className="text-sm text-dark-300">Catat retur / pengembalian barang ke supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'CANCELLED' && (
+          {selectedRow && selectedRow.status === 'APPROVED' && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
@@ -269,19 +289,32 @@ export default function ReturBeli({ isActive }) {
                       <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(r.total)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                          r.status === 'CANCELLED' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                          r.status === 'CANCELLED'
+                            ? 'bg-red-50 text-red-600'
+                            : r.status === 'APPROVED'
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : 'bg-amber-50 text-amber-600'
                         }`}>
-                          {r.status === 'CANCELLED' ? 'CANCELLED' : 'APPROVED'}
+                          {r.status || 'DRAFT'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {r.status !== 'CANCELLED' && (
-                          <button
-                            onClick={(e) => handleCancel(e, r.idreturbeli)}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                            Hapus
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          {r.status === 'APPROVED' && (
+                            <button
+                              onClick={(e) => handleUnapprove(e, r.idreturbeli)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                              <XCircle className="w-3 h-3" /> Batal Approve
+                            </button>
+                          )}
+                          {r.status !== 'CANCELLED' && (
+                            <button
+                              onClick={(e) => handleCancel(e, r.idreturbeli)}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                              Hapus
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

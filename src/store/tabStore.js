@@ -62,14 +62,17 @@ const useTabStore = create(
         },
 
         closeTab: (id) => {
-          const tab = get().tabs.find(t => t.id === id);
+          const targetId = id ?? get().activeTabId;
+          const sameId = (a, b) => String(a) === String(b);
+          const tab = get().tabs.find(t => sameId(t.id, targetId));
           if (tab && !tab.closable) return;
 
           set(state => {
-            const idx       = state.tabs.findIndex(t => t.id === id);
-            const newTabs   = state.tabs.filter(t => t.id !== id);
+            const idx       = state.tabs.findIndex(t => sameId(t.id, targetId));
+            if (idx === -1) return state;
+            const newTabs   = state.tabs.filter(t => !sameId(t.id, targetId));
             let   newActive = state.activeTabId;
-            if (state.activeTabId === id) {
+            if (sameId(state.activeTabId, targetId)) {
               newActive = idx >= newTabs.length
                 ? newTabs[newTabs.length - 1]?.id ?? null
                 : newTabs[idx]?.id ?? null;
