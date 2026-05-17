@@ -12,6 +12,8 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal, BrowseLokasiModal } from '../../../lib/formHelpers';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+import { printFakturA4 } from '../../../lib/fakturPrint';
+import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
   if (!value) return today();
@@ -88,6 +90,7 @@ export default function Pembelian({ isActive }) {
   const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.transaksi'] || s.refreshTokens?.['pembelian']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
+  const { access } = useMenuAccess('pembelian.transaksi');
 
   const [beli, setBeli]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -125,10 +128,12 @@ export default function Pembelian({ isActive }) {
   };
 
   const handleTambah = () => {
+    if (!canAccess(access, 'tambah')) return toast.error('Tidak memiliki akses tambah');
     openOrFocusTab({ label: 'Pembelian Baru', icon: Plus, component: PembelianForm, props: { onSuccess: loadBeli }, type: 'form_add', kodemenu: 'pembelian-add' });
   };
 
   const handleEdit = async (b) => {
+    if (!canAccess(access, 'ubah')) return toast.error('Tidak memiliki akses ubah');
     try {
       const { data } = await api.get(`/beli/${b.idbeli}`);
       openOrFocusTab({
@@ -146,6 +151,7 @@ export default function Pembelian({ isActive }) {
 
   const handleApprove = async (e, id) => {
     e.stopPropagation();
+    if (!canAccess(access, 'approve')) return toast.error('Tidak memiliki akses approve');
     const confirmed = await confirm({
       title: 'Approve Pembelian',
       message: 'Approve Pembelian ini?',
@@ -178,6 +184,7 @@ export default function Pembelian({ isActive }) {
 
   const handleCancel = async (e, id) => {
     e.stopPropagation();
+    if (!canAccess(access, 'bataltransaksi')) return toast.error('Tidak memiliki akses batal transaksi');
     const confirmed = await confirm({
       title: 'Batalkan Pembelian',
       message: 'Batalkan pembelian DRAFT ini?',
@@ -199,6 +206,7 @@ export default function Pembelian({ isActive }) {
 
   const handleUnapprove = async (e, id) => {
     e.stopPropagation();
+    if (!canAccess(access, 'batalapprove')) return toast.error('Tidak memiliki akses batal approve');
     try {
       const { data: check } = await api.get(`/beli/${id}/check-edit`);
       if (!check.canEdit) {
@@ -225,9 +233,18 @@ export default function Pembelian({ isActive }) {
 
   const handleCetak = async () => {
     if (!selectedId) return;
+    if (!canAccess(access, 'cetak')) return toast.error('Tidak memiliki akses cetak');
     try {
       const { data } = await api.get(`/beli/${selectedId}`);
-      printFaktur(data, user);
+      printFakturA4({
+        title: 'FAKTUR PEMBELIAN',
+        codeLabel: 'Kode Beli',
+        code: data.kodebeli,
+        partnerLabel: 'Supplier',
+        partner: data.namasupplier,
+        data,
+        user,
+      });
     } catch {
       toast.error('Gagal memuat data untuk cetak');
     }
@@ -250,16 +267,16 @@ export default function Pembelian({ isActive }) {
           <p className="text-sm text-dark-300">Catat pembelian barang dari supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedRow && selectedRow.status !== 'CANCELLED' && (
+          {selectedRow && selectedRow.status !== 'CANCELLED' && canAccess(access, 'cetak') && (
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
             </button>
           )}
-          <button onClick={handleTambah}
+          {canAccess(access, 'tambah') && <button onClick={handleTambah}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
             <Plus className="w-4 h-4" /> Pembelian Baru
-          </button>
+          </button>}
           <button onClick={handleRefresh} disabled={refreshing}
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50">
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -399,25 +416,25 @@ export default function Pembelian({ isActive }) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {b.status === 'APPROVED' && (
+                        {b.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
                           <button
                             onClick={(e) => handleUnapprove(e, b.idbeli)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
                             <XCircle className="w-3 h-3" /> Batal Approve
                           </button>
                         )}
-                        {b.status === 'DRAFT' && (
+                        {b.status === 'DRAFT' && (canAccess(access, 'approve') || canAccess(access, 'bataltransaksi')) && (
                           <div className="flex items-center justify-center gap-1">
-                            <button
+                            {canAccess(access, 'approve') && <button
                               onClick={(e) => handleApprove(e, b.idbeli)}
                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
                               <CheckCircle className="w-3 h-3" /> Approve
-                            </button>
-                            <button
+                            </button>}
+                            {canAccess(access, 'bataltransaksi') && <button
                               onClick={(e) => handleCancel(e, b.idbeli)}
                               className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
                               Hapus
-                            </button>
+                            </button>}
                           </div>
                         )}
                       </td>

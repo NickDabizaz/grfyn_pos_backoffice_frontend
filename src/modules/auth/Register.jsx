@@ -7,6 +7,10 @@ import { Store, ArrowRight, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 
 const steps = ['Perusahaan', 'Lokasi', 'Owner'];
 
+function normalizeUpper(value) {
+  return String(value || '').toUpperCase();
+}
+
 export default function Register() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -25,6 +29,10 @@ export default function Register() {
       ...prev,
       [section]: { ...prev[section], [field]: value },
     }));
+  };
+
+  const updateUpper = (section, field, value) => {
+    update(section, field, normalizeUpper(value));
   };
 
   const canNext = () => {
@@ -88,13 +96,13 @@ export default function Register() {
             <div className="space-y-4 mt-4 ms-4">
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Nama Perusahaan *</label>
-                <input value={form.tenant.namatenant.toUpperCase()} onChange={e => update('tenant', 'namatenant', e.target.value)}
+                <input value={form.tenant.namatenant} onChange={e => updateUpper('tenant', 'namatenant', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                   placeholder="PT. Nama Perusahaan" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Alamat</label>
-                <textarea value={form.tenant.alamat} onChange={e => update('tenant', 'alamat', e.target.value)}
+                <textarea value={form.tenant.alamat} onChange={e => updateUpper('tenant', 'alamat', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                   rows={2} placeholder="Alamat lengkap" />
               </div>
@@ -115,7 +123,7 @@ export default function Register() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-dark-400 mb-1">NPWP</label>
-                  <input value={form.tenant.npwp} onChange={e => update('tenant', 'npwp', e.target.value)}
+                  <input value={form.tenant.npwp} onChange={e => updateUpper('tenant', 'npwp', e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                     placeholder="xx.xxx.xxx.x-xxx.xxx" />
                 </div>
@@ -132,20 +140,20 @@ export default function Register() {
             <div className="space-y-4 mt-4 ms-4">
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Kode Lokasi *</label>
-                <input value={form.lokasi.kodelokasi} onChange={e => update('lokasi', 'kodelokasi', e.target.value.toUpperCase())}
+                <input value={form.lokasi.kodelokasi} onChange={e => updateUpper('lokasi', 'kodelokasi', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                   placeholder="01" />
                 <p className="text-[10px] text-dark-200 mt-1">Kode unik per perusahaan (contoh: 01, 02)</p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Nama Lokasi *</label>
-                <input value={form.lokasi.namalokasi} onChange={e => update('lokasi', 'namalokasi', e.target.value.toUpperCase())}
+                <input value={form.lokasi.namalokasi} onChange={e => updateUpper('lokasi', 'namalokasi', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                   placeholder="Toko Pusat" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-dark-400 mb-1">Alamat</label>
-                <textarea value={form.lokasi.alamat} onChange={e => update('lokasi', 'alamat', e.target.value)}
+                <textarea value={form.lokasi.alamat} onChange={e => updateUpper('lokasi', 'alamat', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-primary-100 bg-warm-50 text-dark-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300"
                   rows={2} placeholder="Alamat lokasi" />
               </div>

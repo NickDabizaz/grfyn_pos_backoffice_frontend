@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
+import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, RefreshCw, CheckCircle, XCircle, Printer } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -11,6 +12,8 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal } from '../../../lib/formHelpers';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+import { printFakturA4 } from '../../../lib/fakturPrint';
+import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
   if (!value) return today();
@@ -28,11 +31,13 @@ const STATUS_BADGE = {
 };
 
 export default function BPB() {
+  const user = useAuthStore(s => s.user);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
   const requestRefresh = useTabStore(s => s.requestRefresh);
   const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.bpb']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
+  const { access } = useMenuAccess('pembelian.bpb');
 
   const [list, setList]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -58,10 +63,12 @@ export default function BPB() {
   const handleRefresh = () => { setRefreshing(true); loadData(); setTimeout(() => setRefreshing(false), 300); };
 
   const handleTambah = () => {
+    if (!canAccess(access, 'tambah')) return toast.error('Tidak memiliki akses tambah');
     openOrFocusTab({ label: 'BPB Baru', icon: Plus, component: BPBForm, props: { onSuccess: loadData }, type: 'form_add', kodemenu: 'bpb-add' });
   };
 
   const handleEdit = async (g) => {
+    if (!canAccess(access, 'ubah')) return toast.error('Tidak memiliki akses ubah');
     try {
       const { data } = await api.get(`/bpb/${g.idbpb}`);
       openOrFocusTab({
@@ -91,6 +98,7 @@ export default function BPB() {
 
   const handleApprove = async (e, id) => {
     e.stopPropagation();
+    if (!canAccess(access, 'approve')) return toast.error('Tidak memiliki akses approve');
     const confirmed = await confirm({
       title: 'Approve BPB',
       message: 'Approve BPB ini?',
@@ -111,6 +119,7 @@ export default function BPB() {
 
   const handleUnapprove = async (e, id) => {
     e.stopPropagation();
+    if (!canAccess(access, 'batalapprove')) return toast.error('Tidak memiliki akses batal approve');
     const confirmed = await confirm({
       title: 'Batal Approve BPB',
       message: 'Kembalikan BPB ini ke DRAFT?',
@@ -129,6 +138,27 @@ export default function BPB() {
     }
   };
 
+  const handleCetak = async () => {
+    if (!selectedId) return;
+    if (!canAccess(access, 'cetak')) return toast.error('Tidak memiliki akses cetak');
+    try {
+      const { data } = await api.get(`/bpb/${selectedId}`);
+      printFakturA4({
+        title: 'FAKTUR BPB',
+        codeLabel: 'Kode BPB',
+        code: data.kodebpb,
+        partnerLabel: 'Supplier',
+        partner: data.namasupplier,
+        data,
+        user,
+      });
+    } catch {
+      toast.error('Gagal memuat faktur BPB');
+    }
+  };
+
+  const selectedRow = list.find(g => g.idbpb === selectedId);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 pt-4 pb-2 shrink-0">
@@ -137,10 +167,16 @@ export default function BPB() {
           <p className="text-sm text-dark-300">Catat penerimaan barang dari supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleTambah}
+          {selectedRow && selectedRow.status !== 'CANCELLED' && canAccess(access, 'cetak') && (
+            <button onClick={handleCetak}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100">
+              <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {canAccess(access, 'tambah') && <button onClick={handleTambah}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
             <Plus className="w-4 h-4" /> BPB Baru
-          </button>
+          </button>}
           <button onClick={handleRefresh} disabled={refreshing}
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50">
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -213,13 +249,13 @@ export default function BPB() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {g.status === 'APPROVED' && (
+                        {g.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
                           <button onClick={(e) => handleUnapprove(e, g.idbpb)}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">
                             <XCircle className="w-3 h-3" /> Batal Approve
                           </button>
                         )}
-                        {g.status === 'DRAFT' && (
+                        {g.status === 'DRAFT' && canAccess(access, 'approve') && (
                           <button onClick={(e) => handleApprove(e, g.idbpb)}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
                             <CheckCircle className="w-3 h-3" /> Approve

@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react';
 import api from '../../../api/axios';
 import toast from 'react-hot-toast';
 import { Save, Upload } from 'lucide-react';
+import { useAuthStore } from '../../../store/authStore';
+
+const UPPERCASE_FIELDS = new Set(['namatenant', 'alamat']);
+
+function normalizeUpper(value) {
+  return String(value || '').toUpperCase();
+}
 
 export default function Setting() {
+  const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [form, setForm] = useState({
     namatenant: '', alamat: '', hp: '', email: '', ppn: 11,
     cekminus: 'TIDAK', pakaibahanbaku: 'YA', pakaiPPN: 'YA', logo: '',
@@ -15,21 +24,34 @@ export default function Setting() {
 
   useEffect(() => {
     api.get('/setting/toko')
-      .then(r => { setForm(f => ({ ...f, ...r.data })); setLoading(false); })
+      .then(r => {
+        setForm(f => ({
+          ...f,
+          ...r.data,
+          namatenant: normalizeUpper(r.data?.namatenant),
+          alamat: normalizeUpper(r.data?.alamat),
+        }));
+        setLoading(false);
+      })
       .catch(() => { toast.error('Gagal memuat setting'); setLoading(false); });
   }, []);
 
   const handleChange = e => {
     const { name, value, type, checked } = e.target;
-    setForm(f => ({ ...f, [name]: type === 'checkbox' ? (checked ? 'YA' : 'TIDAK') : value }));
+    const nextValue = type === 'checkbox'
+      ? (checked ? 'YA' : 'TIDAK')
+      : UPPERCASE_FIELDS.has(name)
+        ? normalizeUpper(value)
+        : value;
+    setForm(f => ({ ...f, [name]: nextValue }));
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await api.put('/setting/toko', {
-        namatenant    : form.namatenant,
-        alamat        : form.alamat,
+        namatenant    : normalizeUpper(form.namatenant),
+        alamat        : normalizeUpper(form.alamat),
         hp            : form.hp,
         email         : form.email,
         ppn           : parseFloat(form.ppn) || 0,
@@ -44,6 +66,7 @@ export default function Setting() {
         setForm(f => ({ ...f, logo: r.data.logo }));
         setLogoFile(null);
       }
+      if (user) updateUser({ ...user, namatenant: normalizeUpper(form.namatenant) });
       toast.success('Setting berhasil disimpan');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');

@@ -8,6 +8,7 @@ import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowsePOModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
   if (!value) return today();
@@ -29,6 +30,7 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
   const requestRefresh = useTabStore(s => s.requestRefresh);
+  const { access } = useMenuAccess('pembelian.bpb');
 
   const isEdit = !!editData;
   const defaultPpnMode = user?.pakaiPPN !== 'TIDAK' ? 'INCLUDE' : 'TIDAK_PAKAI';
@@ -447,10 +449,10 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
-                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
+                {canAccess(access, 'approve') && <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
                   className="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
-                </button>
+                </button>}
               </div>
             </div>
           </div>

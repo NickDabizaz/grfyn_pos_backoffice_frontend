@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import useTabStore from '../store/tabStore';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import { getPage, openPageFromSidebar } from '../lib/pageRegistry.jsx';
 import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
@@ -17,6 +18,10 @@ const iconMap = {
 
 function getIcon(name) {
   return iconMap[name] || Package;
+}
+
+function displayUpper(value, fallback) {
+  return String(value || fallback).toUpperCase();
 }
 
 function MenuItem({ item, level = 0, openSet, toggle, onNavigate }) {
@@ -87,8 +92,18 @@ export default function Sidebar({ onLogout }) {
     });
   };
 
-  const handleNavigate = useCallback((item) => {
+  const handleNavigate = useCallback(async (item) => {
     if (!item.kodemenu) return;
+    try {
+      const { data } = await api.get('/auth/access', { params: { kodemenu: item.kodemenu } });
+      if (!data.allowed) {
+        toast.error('Tidak memiliki hak akses menu ini');
+        return;
+      }
+    } catch {
+      toast.error('Gagal cek hak akses');
+      return;
+    }
     if (item.kodemenu === 'pos') {
       navigate('/pos');
       return;
@@ -104,8 +119,8 @@ export default function Sidebar({ onLogout }) {
             <Store className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-dark-500 leading-tight">{user?.namatenant || 'Grfyn POS'}</h1>
-            <p className="text-[10px] text-dark-300">{lokasi?.namalokasi || 'Lokasi'}</p>
+            <h1 className="text-sm font-bold text-dark-500 leading-tight">{displayUpper(user?.namatenant, 'Grfyn POS')}</h1>
+            <p className="text-[10px] text-dark-300">{displayUpper(lokasi?.namalokasi, 'Lokasi')}</p>
           </div>
         </div>
       </div>

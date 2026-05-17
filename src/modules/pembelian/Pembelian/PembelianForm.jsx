@@ -8,6 +8,7 @@ import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseBarangModal, BrowseSupplierModal, BrowseLokasiModal, BrowseBPBModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
   if (!value) return today();
@@ -87,6 +88,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
   const lokasiAuth = useAuthStore(s => s.lokasi);
   const closeTab   = useTabStore(s => s.closeTab);
   const requestRefresh = useTabStore(s => s.requestRefresh);
+  const { access } = useMenuAccess('pembelian.transaksi');
 
   const isEdit = !!editData;
   const defaultPpnMode = user?.pakaiPPN !== 'TIDAK' ? 'INCLUDE' : 'TIDAK_PAKAI';
@@ -581,10 +583,10 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
-                <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
+                {canAccess(access, 'approve') && <button onClick={() => handleSubmit(true)} disabled={loading || items.length === 0 || isLocked}
                   className="flex items-center gap-2 px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
-                </button>
+                </button>}
                   <label className="flex items-center gap-2 cursor-pointer ml-2">
                     <input type="checkbox" checked={langsungLunas} onChange={e => setLangsungLunas(e.target.checked)}
                       className="w-4 h-4 rounded accent-primary-500 cursor-pointer" />
