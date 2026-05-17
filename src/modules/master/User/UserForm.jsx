@@ -6,13 +6,13 @@ import useTabStore from '../../../store/tabStore';
 
 const ACCESS_FIELDS = ['hakakses', 'tambah', 'ubah', 'approve', 'batalapprove', 'bataltransaksi', 'cetak'];
 const ACCESS_LABELS = {
-  hakakses: 'Hak Akses',
-  tambah: 'Tambah',
-  ubah: 'Ubah',
-  approve: 'Approve',
-  batalapprove: 'Batal Approve',
+  hakakses      : 'Hak Akses',
+  tambah        : 'Tambah',
+  ubah          : 'Ubah',
+  approve       : 'Approve',
+  batalapprove  : 'Batal Approve',
   bataltransaksi: 'Batal Transaksi',
-  cetak: 'Cetak',
+  cetak         : 'Cetak',
 };
 
 const emptyAccess = () => ACCESS_FIELDS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {});
