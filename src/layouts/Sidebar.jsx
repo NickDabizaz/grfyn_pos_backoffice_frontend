@@ -8,12 +8,13 @@ import { getPage, openPageFromSidebar } from '../lib/pageRegistry.jsx';
 import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, LogOut, Store, ChevronDown, ReceiptText,
-  Coins, UserCog, MapPin, ClipboardList
+  Coins, UserCog, MapPin, ClipboardList, Users, Wallet,
 } from 'lucide-react';
 
 const iconMap = {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, Store, ReceiptText, Coins, UserCog, MapPin, ClipboardList,
+  Users, Wallet,
 };
 
 function getIcon(name) {
