@@ -9,11 +9,18 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
 import { BrowseSupplierModal } from '../../../lib/formHelpers';
 
+const STATUS_BADGE = {
+  DRAFT: 'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
+
 export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
   const user     = useAuthStore(s => s.user);
   const closeTab = useTabStore(s => s.closeTab);
 
   const isEdit = !!editData;
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
 
   const [autoGenerate, setAutoGenerate] = useState(!isEdit);
   const [kode, setKode]                 = useState(editData?.kodepelunasan || '');
@@ -42,13 +49,19 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
     api.get(`/kartuhutang/open-invoices/${supplier.idsupplier}`)
       .then(r => {
         setInvoices(r.data || []);
-        // Auto-select all invoices dengan default amount = sisa
         const sel = new Set();
         const amt = {};
-        (r.data || []).forEach(inv => {
-          sel.add(inv.kodetrans);
-          amt[inv.kodetrans] = parseFloat(inv.sisa) || 0;
-        });
+        if (isEdit && editData?.details?.length) {
+          editData.details.forEach(d => {
+            sel.add(d.kodetrans);
+            amt[d.kodetrans] = parseFloat(d.amount) || 0;
+          });
+        } else {
+          (r.data || []).forEach(inv => {
+            sel.add(inv.kodetrans);
+            amt[inv.kodetrans] = parseFloat(inv.sisa) || 0;
+          });
+        }
         setSelectedIds(sel);
         setAmounts(amt);
       })
@@ -88,7 +101,8 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
 
   const totalBayar = computedDetails.reduce((s, d) => s + d.payAmount, 0);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (approve = false) => {
+    if (isLocked) return toast.error('Pelunasan yang sudah approve/cancel tidak bisa disimpan');
     if (!supplier) return toast.error('Supplier harus dipilih');
     if (computedDetails.length === 0) return toast.error('Pilih minimal satu invoice untuk dibayar');
     if (!autoGenerate && !kode.trim()) return toast.error('Kode pelunasan wajib diisi');
@@ -101,6 +115,7 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
         total_amount: totalBayar,
         metodbayar,
         catatan,
+        approve,
         details: computedDetails.map(d => ({
           kodetrans: d.kodetrans,
           amount: d.payAmount,
@@ -132,7 +147,10 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodepelunasan || 'Pelunasan Hutang'}` : 'Pelunasan Hutang Baru'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodepelunasan || 'Pelunasan Hutang'}` : 'Pelunasan Hutang Baru'}</h2>
+            {isEdit && editData?.status && <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{editData.status}</span>}
+          </div>
           <p className="text-xs text-dark-300">{isEdit ? 'Edit pelunasan hutang ke supplier' : 'Form input pelunasan hutang ke supplier'}</p>
         </div>
       </div>
@@ -206,8 +224,8 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Supplier</label>
                 <div className="flex items-start gap-3">
-                  <button onClick={() => setShowSupplierModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
+                  <button onClick={() => setShowSupplierModal(true)} disabled={isLocked}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0 disabled:opacity-50">
                     <Users className="w-3.5 h-3.5" /> Browse Supplier
                   </button>
                   {supplier ? (
@@ -295,7 +313,7 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
                         <tr key={inv.kodetrans}
                           className={`border-b border-primary-50/50 transition-colors ${isSelected ? 'bg-primary-50/40' : 'hover:bg-warm-50/20'}`}>
                           <td className="px-3 py-2.5 text-center">
-                            <input type="checkbox" checked={isSelected}
+                            <input type="checkbox" checked={isSelected} disabled={isLocked}
                               onChange={() => toggleInvoice(inv.kodetrans)}
                               className="w-3.5 h-3.5 rounded accent-primary-500 cursor-pointer" />
                           </td>
@@ -308,7 +326,7 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
                             <input type="number" min="0" max={sisa}
                               value={amounts[inv.kodetrans] ?? sisa}
                               onChange={e => updateAmount(inv.kodetrans, e.target.value)}
-                              disabled={!isSelected}
+                              disabled={!isSelected || isLocked}
                               className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20 disabled:bg-gray-50 disabled:text-dark-300 disabled:cursor-not-allowed" />
                           </td>
                         </tr>
@@ -338,9 +356,13 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={handleSubmit} disabled={loading || computedDetails.length === 0}
+                <button onClick={() => handleSubmit(false)} disabled={loading || computedDetails.length === 0 || isLocked}
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+                <button onClick={() => handleSubmit(true)} disabled={loading || computedDetails.length === 0 || isLocked}
+                  className="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
                 </button>
               </div>
             </div>

@@ -63,10 +63,10 @@ export default function HitungHPP({ isActive }) {
   };
 
   const handleCancel = async (item) => {
-    if (!confirm(`Batalkan HPP ${formatPeriode(item.periodbulan)}?`)) return;
+    if (!confirm(`Batal Hitung HPP ${formatPeriode(item.periodbulan)}? Status akan menjadi CANCELED.`)) return;
     try {
       await api.put(`/hitunghpp/${item.idhitunghpp}/cancel`);
-      toast.success(`HPP ${formatPeriode(item.periodbulan)} dibatalkan`);
+      toast.success(`HPP ${formatPeriode(item.periodbulan)} menjadi CANCELED`);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal cancel');
@@ -97,8 +97,8 @@ export default function HitungHPP({ isActive }) {
       <div className="flex items-center gap-3 px-6 pb-2">
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-dark-400">
           <option value="">Semua Status</option>
-          <option value="AKTIF">AKTIF</option>
-          <option value="VOID">VOID</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="CANCELED">CANCELED</option>
         </select>
         <select value={tahun} onChange={(e) => setTahun(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-dark-400">
           <option value="">Semua Tahun</option>
@@ -146,12 +146,12 @@ export default function HitungHPP({ isActive }) {
                       <td className="px-4 py-3 text-right text-dark-400">{Number(item.totalsaldoakhir).toLocaleString('id-ID')}</td>
                       <td className="px-4 py-3 text-dark-400">{item.namauser || '-'}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${item.status === 'AKTIF' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.status}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${item.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.status}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => handleDetail(item)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-500" title="Detail"><Eye className="w-4 h-4" /></button>
-                          {item.status === 'AKTIF' && <button onClick={() => handleCancel(item)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500" title="Cancel"><XCircle className="w-4 h-4" /></button>}
+                          {item.status === 'APPROVED' && <button onClick={() => handleCancel(item)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500" title="Batal Hitung HPP"><XCircle className="w-4 h-4" /></button>}
                         </div>
                       </td>
                     </tr>

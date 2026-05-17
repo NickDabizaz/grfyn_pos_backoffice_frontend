@@ -21,7 +21,7 @@ export default function HitungHPPForm({ onSuccess, tabId }) {
   useEffect(() => {
     async function fetchLatest() {
       try {
-        const { data } = await api.get('/hitunghpp', { params: { status: 'AKTIF' } });
+        const { data } = await api.get('/hitunghpp', { params: { status: 'APPROVED' } });
         if (data.length > 0) {
           const latest = data[0].periodbulan;
           const [y, m] = latest.split('-');
@@ -61,11 +61,11 @@ export default function HitungHPPForm({ onSuccess, tabId }) {
   };
 
   const handleSubmit = async () => {
-    if (!confirm(`Posting HPP periode ${periodbulan}? Setelah posting, transaksi & pembelian periode ini sebaiknya tidak diubah.`)) return;
+    if (!confirm(`Approve Hitung HPP periode ${periodbulan}? Setelah approve, periode ini menjadi saldo acuan stok/HPP.`)) return;
     setSubmitting(true);
     try {
       const { data } = await api.post('/hitunghpp', { periodbulan, catatan: catatan || undefined });
-      toast.success(`HPP ${periodbulan} berhasil diposting`);
+      toast.success(`HPP ${periodbulan} berhasil diapprove`);
       if (onSuccess) onSuccess();
       closeTab(tabId);
     } catch (err) {
@@ -145,7 +145,7 @@ export default function HitungHPPForm({ onSuccess, tabId }) {
               <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400">Batal</button>
                 <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50">
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Posting HPP
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Approve HPP
                 </button>
               </div>
             </div>

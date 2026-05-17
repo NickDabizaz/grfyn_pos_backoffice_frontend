@@ -62,11 +62,11 @@ export default function HitungHPPDetail({ id, onSuccess, tabId }) {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-dark-500">{header.kodehitunghpp}</h2>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${header.status === 'AKTIF' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{header.status}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${header.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{header.status}</span>
           </div>
           <p className="text-xs text-dark-300">Periode {formatPeriode(header.periodbulan)}</p>
         </div>
-        {header.status === 'AKTIF' && (
+        {header.status === 'APPROVED' && (
           <button onClick={handleCancel} disabled={cancelling} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 disabled:opacity-50">
             {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Cancel HPP
           </button>

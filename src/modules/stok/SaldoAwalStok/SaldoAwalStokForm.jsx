@@ -1,79 +1,217 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../../../api/axios';
+import { useAuthStore } from '../../../store/authStore';
+import { today, toDateInputValue } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Plus, Trash2 } from 'lucide-react';
 import useTabStore from '../../../store/tabStore';
-import SearchableSelect from '../../../components/ui/SearchableSelect';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/l10n/id.js';
+import { BrowseBarangModal, BrowseLokasiModal, getDefaultSatuan, getSatuanOptions, isJmlValid } from '../../../lib/formHelpers';
+import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
-export default function SaldoAwalStokForm({ onSuccess, tabId }) {
-  const [barangList, setBarangList] = useState([]);
-  const [items, setItems] = useState([{ idbarang: '', jml: '' }]);
-  const [keterangan, setKeterangan] = useState('');
+const STATUS_BADGE = {
+  DRAFT: 'bg-amber-50 text-amber-600 border-amber-100',
+  APPROVED: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED: 'bg-red-50 text-red-500 border-red-100',
+};
+
+export default function SaldoAwalStokForm({ onSuccess, tabId, editData }) {
+  const lokasiAuth = useAuthStore(s => s.lokasi);
+  const closeTab = useTabStore(s => s.closeTab);
+  const { access } = useMenuAccess('stok.saldoawal');
+  const isEdit = !!editData;
+  const isLocked = isEdit && editData?.status !== 'DRAFT';
+  const [lokasi, setLokasi] = useState(
+    isEdit && editData?.idlokasi
+      ? { idlokasi: editData.idlokasi, kodelokasi: editData.kodelokasi, namalokasi: editData.namalokasi }
+      : (lokasiAuth || null)
+  );
+  const [tgltrans, setTgltrans] = useState(toDateInputValue(editData?.tgltrans || today()));
+  const [items, setItems] = useState(
+    editData?.items
+      ? editData.items.map(item => ({
+          idbarang: item.idbarang,
+          kodebarang: item.kodebarang,
+          namabarang: item.namabarang,
+          satuanbesar: item.satuanbesar || null,
+          satuansedang: item.satuansedang || null,
+          satuankecil: item.satuankecil || null,
+          satuan: item.satuan || item.satuankecil || getDefaultSatuan(item),
+          jml: String(Number(item.jml ?? item.qty ?? 0)),
+        }))
+      : []
+  );
+  const [keterangan, setKeterangan] = useState(editData?.catatan || '');
   const [loading, setLoading] = useState(false);
-  const closeTab = useTabStore((s) => s.closeTab);
+  const [showBarangModal, setShowBarangModal] = useState(false);
+  const [showLokasiModal, setShowLokasiModal] = useState(false);
 
-  useEffect(() => {
-    api.get('/barang').then(({ data }) => setBarangList(data)).catch(() => {});
-  }, []);
+  const addBarang = (b) => {
+    if (items.some(i => i.idbarang === b.idbarang)) {
+      toast('Barang sudah ada di tabel.', { icon: 'i' });
+      setShowBarangModal(false);
+      return;
+    }
+    setItems(prev => [...prev, {
+      idbarang: b.idbarang,
+      kodebarang: b.kodebarang,
+      namabarang: b.namabarang,
+      satuanbesar: b.satuanbesar || null,
+      satuansedang: b.satuansedang || null,
+      satuankecil: b.satuankecil || null,
+      satuan: getDefaultSatuan(b),
+      jml: '0',
+    }]);
+    setShowBarangModal(false);
+  };
 
-  const addRow = () => setItems([...items, { idbarang: '', jml: '' }]);
-  const removeRow = (i) => { if (items.length > 1) setItems(items.filter((_, idx) => idx !== i)); };
-  const updateRow = (i, field, val) => setItems(items.map((d, idx) => idx === i ? { ...d, [field]: val } : d));
+  const updateItem = (idx, field, value) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (items.some(d => !d.idbarang || !d.jml)) return toast.error('Lengkapi semua baris');
+  const handleSave = async (approve = false) => {
+    if (isLocked) return toast.error('Saldo awal yang sudah approve/cancel tidak bisa disimpan');
+    if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
+    if (!items.length) return toast.error('Tambahkan barang terlebih dahulu');
+    const invalidIdx = items.findIndex(i => !isJmlValid(i.jml) && Number(i.jml) !== 0);
+    if (invalidIdx !== -1) return toast.error(`Jumlah pada baris ${invalidIdx + 1} tidak valid`);
+
     setLoading(true);
     try {
-      await api.post('/stok/saldoawal', {
-        keterangan,
-        items: items.map(d => ({ idbarang: parseInt(d.idbarang), jml: parseInt(d.jml) }))
-      });
-      toast.success('Saldo awal stok berhasil');
+      const payload = {
+        idlokasi: lokasi.idlokasi,
+        tgltrans,
+        keterangan: keterangan || null,
+        approve,
+        items: items.map(i => ({ idbarang: i.idbarang, jml: Number(i.jml), satuan: i.satuan })),
+      };
+      if (isEdit) {
+        await api.put(`/stok/saldoawal/${editData.idsaldostok}`, payload);
+      } else {
+        await api.post('/stok/saldoawal', payload);
+      }
+      toast.success(approve ? 'Saldo awal disimpan dan diapprove' : 'Saldo awal disimpan sebagai DRAFT');
       if (onSuccess) onSuccess();
       closeTab(tabId);
-    } catch (err) { toast.error(err.response?.data?.message || 'Gagal'); }
-    finally { setLoading(false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-6 pt-4 pb-2 border-b border-primary-50 shrink-0">
-        <button onClick={() => closeTab(tabId)} className="p-1.5 rounded-lg hover:bg-warm-50 text-dark-400"><ArrowLeft className="w-4 h-4" /></button>
-        <div><h2 className="text-lg font-bold text-dark-500">Saldo Awal Stok</h2><p className="text-xs text-dark-300">Input saldo awal untuk beberapa barang</p></div>
+      <div className="flex items-center gap-3 px-6 pt-4 pb-3 border-b border-primary-50 shrink-0">
+        <button onClick={() => closeTab(tabId)} className="p-1.5 rounded-lg hover:bg-warm-50 text-dark-400">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-dark-500">{isEdit ? `Edit ${editData?.kodesaldostok || 'Saldo Awal'}` : 'Saldo Awal Stok Baru'}</h2>
+            {isEdit && editData?.status && (
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[editData.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                {editData.status}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-dark-300">Input saldo acuan awal stok per lokasi</p>
+        </div>
       </div>
+
       <div className="flex-1 overflow-auto p-6">
-        <form onSubmit={handleSave} className="max-w-3xl space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-dark-400 mb-1">Keterangan</label>
-            <input value={keterangan} onChange={e => setKeterangan(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm" placeholder="Saldo awal stok..." />
-          </div>
-          <div className="space-y-2">
-            {items.map((d, i) => (
-              <div key={i} className="flex items-end gap-2 p-3 rounded-xl bg-warm-50/50">
-                <div className="flex-1">
-                  <label className="block text-[10px] font-semibold text-dark-300 mb-1">Barang</label>
-                  <SearchableSelect
-                    value={d.idbarang} onChange={(val) => updateRow(i, 'idbarang', val)}
-                    options={barangList.map(b => ({ value: b.idbarang, label: `${b.kodebarang} - ${b.namabarang}` }))}
-                    placeholder="Pilih barang"
-                  />
-                </div>
-                <div className="w-32">
-                  <label className="block text-[10px] font-semibold text-dark-300 mb-1">Qty</label>
-                  <input type="number" value={d.jml} onChange={e => updateRow(i, 'jml', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-primary-100 text-sm text-center" min="0" />
-                </div>
-                <button type="button" onClick={() => removeRow(i)} className="p-2 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
+        <div className="max-w-5xl mx-auto space-y-4">
+          <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
+            <div className="px-5 py-3 border-b border-primary-50 bg-warm-50/50">
+              <h3 className="text-xs font-bold text-dark-400 uppercase tracking-wider">Header</h3>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Tanggal Transaksi</label>
+                <Flatpickr value={tgltrans} onChange={([d]) => setTgltrans(toDateInputValue(d))}
+                  options={{ dateFormat: 'Y-m-d', locale: 'id' }} className="flatpickr-input w-full" />
               </div>
-            ))}
+              <div>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Lokasi</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 bg-warm-50/40 text-sm min-h-[38px]">
+                    <MapPin className="w-3.5 h-3.5 text-dark-300 shrink-0" />
+                    {lokasi ? <span className="text-dark-500">{lokasi.namalokasi}</span> : <span className="text-dark-300">Pilih Lokasi...</span>}
+                  </div>
+                  <button onClick={() => setShowLokasiModal(true)} className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50">Browse</button>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Catatan</label>
+                <textarea value={keterangan} onChange={e => setKeterangan(e.target.value)} rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none" placeholder="Opsional..." />
+              </div>
+            </div>
           </div>
-          <button type="button" onClick={addRow} className="flex items-center gap-1 text-xs font-semibold text-primary-500 hover:text-primary-600"><Plus className="w-3.5 h-3.5" /> Tambah Baris</button>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => closeTab(tabId)} className="flex-1 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50">Batal</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 disabled:opacity-50">{loading ? 'Menyimpan...' : 'Simpan'}</button>
+
+          <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
+            <div className="px-5 py-3 border-b border-primary-50 bg-warm-50/50 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-dark-400 uppercase tracking-wider">Detail Barang <span className="ml-2 px-1.5 py-0.5 rounded-md bg-primary-100 text-primary-600 text-[10px]">{items.length}</span></h3>
+              <button onClick={() => setShowBarangModal(true)} disabled={isLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold disabled:opacity-50">
+                <Plus className="w-3.5 h-3.5" /> Tambah Barang
+              </button>
+            </div>
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-primary-50 bg-warm-50/30">
+                    <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-10">No</th>
+                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-dark-300 w-28">Kode</th>
+                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-dark-300">Nama Barang</th>
+                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-dark-300 w-28">Satuan</th>
+                    <th className="text-center px-3 py-2.5 text-xs font-semibold text-dark-300 w-28">Jumlah</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Belum ada barang. Klik <span className="font-semibold text-primary-500">Tambah Barang</span>.</td></tr>
+                  ) : items.map((item, idx) => (
+                    <tr key={item.idbarang} className="border-b border-primary-50/50 hover:bg-warm-50/20">
+                      <td className="px-3 py-2.5 text-center text-xs text-dark-300">{idx + 1}</td>
+                      <td className="px-3 py-2.5 text-xs font-mono text-dark-300">{item.kodebarang}</td>
+                      <td className="px-3 py-2.5 font-medium text-dark-500">{item.namabarang}</td>
+                      <td className="px-3 py-2.5">
+                        <select value={item.satuan} onChange={e => updateItem(idx, 'satuan', e.target.value)} className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs bg-white">
+                          {getSatuanOptions(item).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <input type="text" value={item.jml} onChange={e => updateItem(idx, 'jml', e.target.value)}
+                          className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button onClick={() => removeItem(idx)} className="p-1 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </form>
+
+          <div className="bg-white rounded-2xl border border-primary-50 p-5 flex items-center justify-end gap-3">
+            <button onClick={() => handleSave(false)} disabled={loading || !items.length || isLocked} className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold disabled:opacity-50">
+              {loading ? 'Menyimpan...' : 'Simpan'}
+            </button>
+            {canAccess(access, 'approve') && (
+              <button onClick={() => handleSave(true)} disabled={loading || !items.length || isLocked} className="px-5 py-2 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold disabled:opacity-50">
+                {loading ? 'Menyimpan...' : 'Simpan dan Approve'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {showLokasiModal && <BrowseLokasiModal onSelect={l => { setLokasi(l); setShowLokasiModal(false); }} onClose={() => setShowLokasiModal(false)} />}
+      {showBarangModal && <BrowseBarangModal priceType="beli" showStock={false} onSelect={addBarang} onClose={() => setShowBarangModal(false)} />}
     </div>
   );
 }

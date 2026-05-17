@@ -33,6 +33,8 @@ const menu = [
       { to: '/laporan/master/barang', label: 'Barang' },
       { to: '/laporan/stok/sekarang', label: 'Stok Sekarang' },
       { to: '/laporan/stok/kartustok', label: 'Kartu Stok' },
+      { to: '/laporan/stok/opname', label: 'Opname Stok' },
+      { to: '/laporan/stok/transfer', label: 'Transfer Stok' },
     ]
   },
   {

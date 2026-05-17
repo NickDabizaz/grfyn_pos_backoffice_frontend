@@ -35,6 +35,7 @@ const Payroll            = lazy(() => import('../modules/hr/Payroll/Payroll'));
 const LaporanPage        = lazy(() => import('../modules/laporan/LaporanPage'));
 const LaporanStokSekarang  = lazy(() => import('../modules/laporan/LaporanStokSekarang'));
 const LaporanStokKartuStok = lazy(() => import('../modules/laporan/LaporanStokKartuStok'));
+const LaporanStokTransaksi = lazy(() => import('../modules/laporan/LaporanStokTransaksi'));
 
 const registry = {
   'dashboard': {
@@ -95,6 +96,8 @@ const registry = {
   // Laporan Stok
   'laporan.stok.sekarang' : { component: LaporanStokSekarang,  label: 'Stok Sekarang', icon: FileBarChart },
   'laporan.stok.kartustok': { component: LaporanStokKartuStok, label: 'Kartu Stok',   icon: ClipboardList },
+  'laporan.stok.opname'   : { component: LaporanStokTransaksi, label: 'Opname Stok',  icon: ClipboardList, props: { jenis: 'opname' } },
+  'laporan.stok.transfer' : { component: LaporanStokTransaksi, label: 'Transfer Stok', icon: ClipboardList, props: { jenis: 'transfer' } },
 
   // Setting
   'setting': { component: Setting, label: 'Setting Perusahaan', icon: Settings },
