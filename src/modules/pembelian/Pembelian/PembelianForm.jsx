@@ -255,6 +255,7 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
   );
 
   const handleSubmit = async (approve = false) => {
+    if (langsungLunas) approve = true;
     if (isLocked) return toast.error('Pembelian yang sudah approve tidak bisa disimpan lagi');
     if (items.length === 0) return toast.error('Tambahkan barang terlebih dahulu');
     if (!lokasi?.idlokasi) return toast.error('Lokasi wajib dipilih');
@@ -589,7 +590,8 @@ export default function PembelianForm({ onSuccess, tabId, editData }) {
                 </button>}
                   <label className="flex items-center gap-2 cursor-pointer ml-2">
                     <input type="checkbox" checked={langsungLunas} onChange={e => setLangsungLunas(e.target.checked)}
-                      className="w-4 h-4 rounded accent-primary-500 cursor-pointer" />
+                      disabled={isLocked}
+                      className="w-4 h-4 rounded accent-primary-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50" />
                     <span className="text-xs text-dark-400 font-medium">Langsung Lunas</span>
                   </label>
               </div>
