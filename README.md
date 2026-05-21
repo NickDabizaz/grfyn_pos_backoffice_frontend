@@ -10,10 +10,13 @@ cp .env-example .env
 npm run build
 ```
 
+## Demo Public
+
+- Backoffice: http://erp.grfyn.my.id/
+
 ## Akun Demo
 
 Gunakan akun berikut untuk mencoba demo public:
 
 - Email: `demo@grfyn.id`
 - Password: `pass123`
-
