@@ -15,6 +15,13 @@ export default function Login() {
   const [selectedLokasi, setSelectedLokasi] = useState('');
   const loginAction = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+  const demoUsername = 'demo@grfyn.id';
+  const demoPassword = 'pass123';
+
+  const fillDemoAccount = () => {
+    setUsername(demoUsername);
+    setPassword(demoPassword);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -169,6 +176,23 @@ export default function Login() {
               {loading ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
+
+          <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">Akun Demo</p>
+                <p className="mt-2 text-sm font-semibold text-dark-500">{demoUsername}</p>
+                <p className="text-xs text-dark-300">Password: {demoPassword}</p>
+              </div>
+              <button
+                type="button"
+                onClick={fillDemoAccount}
+                className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-primary-700 shadow-sm ring-1 ring-primary-100 transition-all hover:bg-primary-500 hover:text-white"
+              >
+                Gunakan
+              </button>
+            </div>
+          </div>
 
           <p className="text-center text-xs text-dark-300 mt-4">
             Belum punya akun?{' '}
