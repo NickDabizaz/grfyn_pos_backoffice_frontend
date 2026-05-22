@@ -8,13 +8,14 @@ import { getPage, openPageFromSidebar } from '../lib/pageRegistry.jsx';
 import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, LogOut, Store, ChevronDown, ReceiptText,
-  Coins, UserCog, MapPin, ClipboardList, Users, Wallet,
+  Coins, UserCog, MapPin, ClipboardList, Users, Wallet, CreditCard,
 } from 'lucide-react';
 
 const iconMap = {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, Store, ReceiptText, Coins, UserCog, MapPin, ClipboardList,
   Users, Wallet,
+  CreditCard,
 };
 
 function getIcon(name) {
@@ -112,6 +113,10 @@ export default function Sidebar({ onLogout }) {
     openPageFromSidebar(item.kodemenu, openOrFocus);
   }, [openOrFocus, navigate]);
 
+  const openSubscription = () => {
+    openPageFromSidebar('subscription', openOrFocus);
+  };
+
   return (
     <aside className="w-64 h-screen bg-white border-r border-primary-100 flex flex-col fixed left-0 top-0 z-40">
       <div className="p-6 border-b border-primary-100">
@@ -131,6 +136,14 @@ export default function Sidebar({ onLogout }) {
         ))}
       </nav>
       <div className="p-4 border-t border-primary-100">
+        {Number(user?.isowner || 0) === 1 && (
+          <button
+            onClick={openSubscription}
+            className="w-full flex items-center gap-2 px-3 py-2 mb-3 rounded-lg text-xs font-semibold text-accent-700 bg-accent-50 hover:bg-accent-100 transition-colors"
+          >
+            <CreditCard className="w-3.5 h-3.5" /> Subscription
+          </button>
+        )}
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-lg bg-accent-100 flex items-center justify-center text-xs font-bold text-accent-600">
             {user?.namauser?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || '?'}

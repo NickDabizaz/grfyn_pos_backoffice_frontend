@@ -2,7 +2,7 @@ import { lazy } from 'react';
 import {
   LayoutDashboard, Package, ShoppingBag, Warehouse,
   ReceiptText, Coins, FileBarChart, Settings, UserCog, MapPin,
-  Calculator, Undo2, Wallet, ClipboardList,
+  Calculator, Undo2, Wallet, ClipboardList, CreditCard,
 } from 'lucide-react';
 
 // ── Lazy-loaded page components ───────────────────────────────────────────────
@@ -29,6 +29,7 @@ const StockOpname        = lazy(() => import('../modules/stok/StockOpname/StockO
 const PelunasanPiutang   = lazy(() => import('../modules/keuangan/PelunasanPiutang/PelunasanPiutang'));
 const PelunasanHutang    = lazy(() => import('../modules/keuangan/PelunasanHutang/PelunasanHutang'));
 const Setting            = lazy(() => import('../modules/pos/Setting/Setting'));
+const Subscription       = lazy(() => import('../modules/subscription/Subscription'));
 const Karyawan           = lazy(() => import('../modules/hr/Karyawan/Karyawan'));
 const Absensi            = lazy(() => import('../modules/hr/Absensi/Absensi'));
 const Payroll            = lazy(() => import('../modules/hr/Payroll/Payroll'));
@@ -107,6 +108,7 @@ const registry = {
 
   // Setting
   'setting': { component: Setting, label: 'Setting Perusahaan', icon: Settings },
+  'subscription': { component: Subscription, label: 'Subscription', icon: CreditCard },
 };
 
 export function getPage(kodemenu) {
