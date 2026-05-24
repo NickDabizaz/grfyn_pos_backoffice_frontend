@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { CheckCircle2, CreditCard, DatabaseBackup, Headset, RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, CreditCard, DatabaseBackup, ExternalLink, Headset, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 import { formatRupiah } from '../../lib/utils';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 function limitText(value, suffix) {
   return value === null || value === undefined ? 'Unlimited' : `${value} ${suffix}`;
@@ -20,10 +21,12 @@ function downloadBlob(blob, filename) {
 }
 
 export default function Subscription() {
+  const confirm = useConfirm();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [cancelOrderId, setCancelOrderId] = useState(null);
 
   const load = async () => {
     try {
@@ -49,6 +52,10 @@ export default function Subscription() {
     if (!transactionLimit) return 100;
     return Math.min(100, Math.round((Number(data?.usage?.transactions_this_month || 0) / transactionLimit) * 100));
   }, [data, transactionLimit]);
+  const pendingPayment = useMemo(
+    () => (data?.recent_payments || []).find((p) => p.status === 'PENDING' && p.midtrans_redirect_url),
+    [data]
+  );
 
   const handleCheckout = async () => {
     setCheckoutLoading(true);
@@ -56,7 +63,7 @@ export default function Subscription() {
       const res = await api.post('/subscription/checkout');
       if (res.data?.redirect_url) {
         window.open(res.data.redirect_url, '_blank', 'noopener,noreferrer');
-        toast.success('Halaman pembayaran Midtrans dibuka');
+        toast.success(res.data?.existing ? 'Pembayaran pending dibuka lagi' : 'Halaman pembayaran Midtrans dibuka');
       } else {
         toast.error('Redirect URL Midtrans tidak ditemukan');
       }
@@ -81,6 +88,36 @@ export default function Subscription() {
       toast.error(message);
     } finally {
       setBackupLoading(false);
+    }
+  };
+
+  const handleOpenPayment = (url) => {
+    if (!url) {
+      toast.error('Link pembayaran tidak ditemukan');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCancelPayment = async (orderId) => {
+    const ok = await confirm({
+      title: 'Batalkan Pembayaran',
+      message: 'Pembayaran pending ini akan di-expire di Midtrans dan tidak bisa dibayar lagi.',
+      confirmText: 'Batalkan',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    setCancelOrderId(orderId);
+    try {
+      const res = await api.post(`/subscription/payments/${encodeURIComponent(orderId)}/expire`);
+      toast.success(res.data?.message || 'Pembayaran dibatalkan');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal membatalkan pembayaran');
+    } finally {
+      setCancelOrderId(null);
     }
   };
 
@@ -162,7 +199,7 @@ export default function Subscription() {
                 disabled={checkoutLoading}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-sm font-bold disabled:opacity-60"
               >
-                <CreditCard className="w-4 h-4" /> {checkoutLoading ? 'Memproses...' : 'Bayar Midtrans'}
+                <CreditCard className="w-4 h-4" /> {checkoutLoading ? 'Memproses...' : (pendingPayment ? 'Lanjut Bayar' : 'Upgrade Sekarang')}
               </button>
             </div>
 
@@ -224,6 +261,7 @@ export default function Subscription() {
                     <th className="py-2 pr-3">Nominal</th>
                     <th className="py-2 pr-3">Status</th>
                     <th className="py-2 pr-3">Tanggal</th>
+                    <th className="py-2 pr-3 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,11 +274,34 @@ export default function Subscription() {
                         <span className="px-2 py-1 rounded-md bg-primary-50 text-[11px] font-bold">{p.status}</span>
                       </td>
                       <td className="py-2 pr-3">{new Date(p.tglentry).toLocaleString('id-ID')}</td>
+                      <td className="py-2 pr-3">
+                        <div className="flex items-center justify-end gap-2">
+                          {p.status === 'PENDING' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPayment(p.midtrans_redirect_url)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-primary-100 text-[11px] font-bold text-dark-400 hover:bg-warm-50"
+                              >
+                                <ExternalLink className="w-3 h-3" /> Lanjut Bayar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCancelPayment(p.order_id)}
+                                disabled={cancelOrderId === p.order_id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red-100 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                <XCircle className="w-3 h-3" /> {cancelOrderId === p.order_id ? 'Batal...' : 'Batalkan'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                   {(!data?.recent_payments || data.recent_payments.length === 0) && (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center text-dark-300">Belum ada pembayaran.</td>
+                      <td colSpan={6} className="py-6 text-center text-dark-300">Belum ada pembayaran.</td>
                     </tr>
                   )}
                 </tbody>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TabBar from './TabBar';
 import TabContent from './TabContent';
@@ -12,6 +12,7 @@ let dashboardOpened = false;
 
 export default function MainLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
   const token = useAuthStore((s) => s.token);
   const closeAllTabs = useTabStore((s) => s.closeAllTabs);
@@ -37,6 +38,15 @@ export default function MainLayout() {
       if (!alreadyOpen) openPageFromSidebar(DASHBOARD_KODE, openOrFocus);
     }
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('open') === 'subscription') {
+      openPageFromSidebar('subscription', openOrFocus);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [token, location.pathname, location.search, navigate, openOrFocus]);
 
   const handleLogout = () => {
     dashboardOpened = false;
