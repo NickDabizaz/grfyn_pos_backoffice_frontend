@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { CheckCircle2, CreditCard, DatabaseBackup, ExternalLink, Headset, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, ExternalLink, Headset, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 import { formatRupiah } from '../../lib/utils';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -9,23 +9,11 @@ function limitText(value, suffix) {
   return value === null || value === undefined ? 'Unlimited' : `${value} ${suffix}`;
 }
 
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export default function Subscription() {
   const confirm = useConfirm();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [backupLoading, setBackupLoading] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState(null);
 
   const load = async () => {
@@ -58,6 +46,11 @@ export default function Subscription() {
   );
 
   const handleCheckout = async () => {
+    if (plan?.is_pro) {
+      toast('Tenant sudah aktif PRO');
+      return;
+    }
+
     setCheckoutLoading(true);
     try {
       const res = await api.post('/subscription/checkout');
@@ -72,22 +65,6 @@ export default function Subscription() {
       toast.error(err.response?.data?.message || 'Gagal membuat pembayaran');
     } finally {
       setCheckoutLoading(false);
-    }
-  };
-
-  const handleBackup = async () => {
-    setBackupLoading(true);
-    try {
-      const res = await api.get('/subscription/backup', { responseType: 'blob' });
-      const disposition = res.headers['content-disposition'] || '';
-      const match = disposition.match(/filename="([^"]+)"/i);
-      downloadBlob(res.data, match?.[1] || 'grfyn-backup.json');
-      toast.success('Backup berhasil dibuat');
-    } catch (err) {
-      const message = err.response?.data?.message || 'Backup hanya tersedia untuk PRO';
-      toast.error(message);
-    } finally {
-      setBackupLoading(false);
     }
   };
 
@@ -128,7 +105,7 @@ export default function Subscription() {
       <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-dark-500">Subscription</h2>
-          <p className="text-sm text-dark-300">Kelola plan tenant, pembayaran, backup, dan akses support.</p>
+          <p className="text-sm text-dark-300">Kelola plan tenant, pembayaran, dan akses support.</p>
         </div>
         <button
           onClick={load}
@@ -190,49 +167,41 @@ export default function Subscription() {
           <section className="col-span-12 xl:col-span-5 bg-white border border-primary-100 rounded-lg p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold text-dark-300">Upgrade</p>
+                <p className="text-xs font-semibold text-dark-300">{plan?.is_pro ? 'Plan Aktif' : 'Upgrade'}</p>
                 <h3 className="mt-1 text-2xl font-black text-dark-500">PRO</h3>
-                <p className="mt-1 text-sm font-bold text-accent-700">Rp {formatRupiah(pro?.price || 99000)} / bulan</p>
+                <p className="mt-1 text-sm font-bold text-accent-700">
+                  {plan?.is_pro ? 'Sudah aktif' : `Rp ${formatRupiah(pro?.price || 99000)} / bulan`}
+                </p>
               </div>
-              <button
-                onClick={handleCheckout}
-                disabled={checkoutLoading}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-sm font-bold disabled:opacity-60"
-              >
-                <CreditCard className="w-4 h-4" /> {checkoutLoading ? 'Memproses...' : (pendingPayment ? 'Lanjut Bayar' : 'Upgrade Sekarang')}
-              </button>
+              {plan?.is_pro ? (
+                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-bold">
+                  <ShieldCheck className="w-4 h-4" /> PRO Aktif
+                </span>
+              ) : (
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-sm font-bold disabled:opacity-60"
+                >
+                  <CreditCard className="w-4 h-4" /> {checkoutLoading ? 'Memproses...' : (pendingPayment ? 'Lanjut Bayar' : 'Upgrade Sekarang')}
+                </button>
+              )}
             </div>
 
             <div className="mt-5 space-y-2 text-sm text-dark-400">
               <p className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Transaksi unlimited per bulan</p>
               <p className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Multi-user tanpa batas sistem</p>
-              <p className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Backup data tenant</p>
+              <p className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Backup database oleh admin</p>
               <p className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Support ke admin</p>
             </div>
           </section>
 
-          <section className="col-span-12 xl:col-span-7 bg-white border border-primary-100 rounded-lg p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-sm font-bold text-dark-500">Backup Data</h3>
-                <p className="mt-1 text-xs text-dark-300">Export data tenant ke file JSON. Tersedia untuk PRO.</p>
-              </div>
-              <button
-                onClick={handleBackup}
-                disabled={!plan?.benefits?.backup || backupLoading}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary-100 text-sm font-bold text-dark-400 hover:bg-warm-50 disabled:opacity-50"
-              >
-                <DatabaseBackup className="w-4 h-4" /> {backupLoading ? 'Membuat...' : 'Backup'}
-              </button>
-            </div>
-          </section>
-
-          <section className="col-span-12 xl:col-span-5 bg-white border border-primary-100 rounded-lg p-5">
+          <section className="col-span-12 bg-white border border-primary-100 rounded-lg p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-bold text-dark-500">Support Admin</h3>
                 <p className="mt-1 text-xs text-dark-300">
-                  {plan?.benefits?.support ? 'Kontak support tersedia untuk tenant PRO.' : 'Upgrade ke PRO untuk akses support admin.'}
+                  {plan?.benefits?.support ? 'Kontak support WhatsApp tersedia untuk tenant PRO.' : 'Upgrade ke PRO untuk akses support admin.'}
                 </p>
               </div>
               {plan?.benefits?.support && data?.support?.url ? (
