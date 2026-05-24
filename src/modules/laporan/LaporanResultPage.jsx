@@ -1,7 +1,57 @@
-import { Printer } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Printer, RefreshCw } from 'lucide-react';
 import { formatRupiah } from '../../lib/utils';
 
-export default function LaporanResultPage({ url, label, data, type }) {
+function getApiBaseUrl() {
+  return import.meta.env.VITE_API_URL || '/api';
+}
+
+function normalizeReportUrl(url) {
+  if (!url) return '';
+  const apiBase = getApiBaseUrl();
+  if (url.startsWith('/api') && apiBase !== '/api') {
+    return `${apiBase.replace(/\/api\/?$/, '')}${url}`;
+  }
+  return url;
+}
+
+export default function LaporanResultPage({ url, token, label, data, type }) {
+  const [html, setHtml] = useState('');
+  const [loading, setLoading] = useState(Boolean(url));
+  const [error, setError] = useState('');
+
+  const loadReport = async () => {
+    if (!url) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(normalizeReportUrl(url), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const text = await response.text();
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        throw new Error(text || `Gagal memuat laporan (${response.status})`);
+      }
+      if (!contentType.includes('text/html')) {
+        throw new Error('Response laporan bukan HTML');
+      }
+      if (text.includes('id="root"') || text.includes('GRFYN DEMO PUBLIC')) {
+        throw new Error('Server mengembalikan halaman aplikasi, bukan hasil laporan');
+      }
+      setHtml(text);
+    } catch (err) {
+      setHtml('');
+      setError(err.message || 'Gagal memuat laporan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReport();
+  }, [url, token]);
+
   const handlePrint = () => {
     if (url) {
       const iframe = document.querySelector('iframe[title="Hasil Laporan"]');
@@ -126,14 +176,36 @@ export default function LaporanResultPage({ url, label, data, type }) {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-4 py-2 border-b border-primary-100 bg-white shrink-0">
           <h3 className="text-sm font-bold text-dark-500">{label || 'Hasil Laporan'}</h3>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5" /> Cetak
-          </button>
+          <div className="flex items-center gap-2">
+            {error && (
+              <button
+                onClick={loadReport}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary-100 text-dark-400 hover:bg-warm-50 text-xs font-semibold transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Muat Ulang
+              </button>
+            )}
+            <button
+              onClick={handlePrint}
+              disabled={!html}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <Printer className="w-3.5 h-3.5" /> Cetak
+            </button>
+          </div>
         </div>
-        <iframe src={url} className="flex-1 w-full border-0" title="Hasil Laporan" />
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-dark-300">Memuat laporan...</div>
+        ) : error ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="max-w-md text-center">
+              <p className="text-sm font-bold text-dark-500">Laporan gagal dimuat</p>
+              <p className="mt-2 text-xs text-dark-300 leading-relaxed">{error}</p>
+            </div>
+          </div>
+        ) : (
+          <iframe srcDoc={html} className="flex-1 w-full border-0" title="Hasil Laporan" />
+        )}
       </div>
     );
   }

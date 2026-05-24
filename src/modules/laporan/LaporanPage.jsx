@@ -10,7 +10,7 @@ import LaporanResultPage from './LaporanResultPage';
 import laporanConfig from './laporanConfig';
 
 const reportUrl = (endpoint, token, params = {}) => {
-  const qs = new URLSearchParams({ format: 'html', token, ...params }).toString();
+  const qs = new URLSearchParams({ format: 'html', ...params }).toString();
   return `/api/laporan/${endpoint}?${qs}`;
 };
 
@@ -79,7 +79,7 @@ export default function LaporanPage({ kodemenu }) {
     openTab({
       label    : jenis.label,
       component: LaporanResultPage,
-      props    : { url: reportUrl(jenis.endpoint, token, params), label: jenis.label },
+      props    : { url: reportUrl(jenis.endpoint, token, params), token, label: jenis.label },
       type     : 'report',
       kodemenu : null,
       icon     : FileBarChart,
