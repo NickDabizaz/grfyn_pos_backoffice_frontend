@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api, { scheduleProactiveRefresh } from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -194,12 +194,14 @@ export default function Login() {
             </div>
           </div>
 
+          {/*
           <p className="text-center text-xs text-dark-300 mt-4">
             Belum punya akun?{' '}
             <Link to="/register" className="text-primary-600 font-semibold hover:underline">
               Daftar Perusahaan
             </Link>
           </p>
+          */}
         </div>
       </div>
     </div>
