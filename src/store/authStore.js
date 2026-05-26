@@ -16,6 +16,7 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem('grfyn_token');
     localStorage.removeItem('grfyn_user');
     localStorage.removeItem('grfyn_lokasi');
+    localStorage.removeItem('grfyn_refresh_token');
     set({ token: null, user: null, lokasi: null });
   },
 
