@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
@@ -71,6 +71,7 @@ export default function ReturBeli({ isActive }) {
   const requestRefresh = useTabStore(s => s.requestRefresh);
   const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.retur']);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
 
   const [retur, setRetur]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -122,8 +123,7 @@ export default function ReturBeli({ isActive }) {
     }
   };
 
-  const handleApprove = async (e, id) => {
-    e.stopPropagation();
+  const handleApprove = async () => {
     const confirmed = await confirm({
       title: 'Approve Retur Pembelian',
       message: 'Approve Retur Pembelian ini?',
@@ -133,7 +133,7 @@ export default function ReturBeli({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returbeli/${id}/approve`);
+      await api.put(`/returbeli/${selectedRow.idreturbeli}/approve`);
       toast.success('Retur Pembelian diapprove');
       loadRetur();
       requestRefresh('pembelian.transaksi');
@@ -143,10 +143,19 @@ export default function ReturBeli({ isActive }) {
     }
   };
 
-  const handleRowClick = (r) => setSelectedId(r.idreturbeli === selectedId ? null : r.idreturbeli);
+  const handleRowClick = (r) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === r.idreturbeli && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(r);
+      return;
+    }
+    lastRowClickRef.current = { id: r.idreturbeli, at: now };
+    setSelectedId(r.idreturbeli === selectedId ? null : r.idreturbeli);
+  };
 
-  const handleCancel = async (e, id) => {
-    e.stopPropagation();
+  const handleBatalTransaksi = async () => {
     const confirmed = await confirm({
       title: 'Batalkan Retur',
       message: 'Batalkan retur DRAFT ini?',
@@ -156,9 +165,9 @@ export default function ReturBeli({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returbeli/${id}/cancel`);
+      await api.put(`/returbeli/${selectedRow.idreturbeli}/cancel`);
       toast.success('Retur dibatalkan');
-      if (selectedId === id) setSelectedId(null);
+      setSelectedId(null);
       loadRetur();
       requestRefresh('pembelian.transaksi');
       requestRefresh('pembelian');
@@ -167,8 +176,7 @@ export default function ReturBeli({ isActive }) {
     }
   };
 
-  const handleUnapprove = async (e, id) => {
-    e.stopPropagation();
+  const handleUnapprove = async () => {
     const confirmed = await confirm({
       title: 'Batal Approve Retur Pembelian',
       message: 'Kembalikan Retur Pembelian ini ke DRAFT? Kartu stok dan kartu hutang retur akan dihapus.',
@@ -178,7 +186,7 @@ export default function ReturBeli({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returbeli/${id}/unapprove`);
+      await api.put(`/returbeli/${selectedRow.idreturbeli}/unapprove`);
       toast.success('Approve Retur Pembelian dibatalkan');
       loadRetur();
       requestRefresh('pembelian.transaksi');
@@ -213,6 +221,24 @@ export default function ReturBeli({ isActive }) {
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && (
+            <button onClick={handleApprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && (
+            <button onClick={handleUnapprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && (
+            <button onClick={handleBatalTransaksi}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+              Batal Transaksi
             </button>
           )}
           <button onClick={handleTambah}
@@ -287,12 +313,11 @@ export default function ReturBeli({ isActive }) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Beli</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data retur</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data retur</td></tr>
                 )}
                 {paginatedItems.map((r) => {
                   const isSelected = selectedId === r.idreturbeli;
@@ -322,31 +347,6 @@ export default function ReturBeli({ isActive }) {
                         }`}>
                           {r.status || 'DRAFT'}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {r.status === 'APPROVED' && (
-                            <button
-                              onClick={(e) => handleUnapprove(e, r.idreturbeli)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
-                              <XCircle className="w-3 h-3" /> Batal Approve
-                            </button>
-                          )}
-                          {r.status === 'DRAFT' && (
-                            <>
-                              <button
-                                onClick={(e) => handleApprove(e, r.idreturbeli)}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
-                                <CheckCircle className="w-3 h-3" /> Approve
-                              </button>
-                              <button
-                                onClick={(e) => handleCancel(e, r.idreturbeli)}
-                                className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                                Hapus
-                              </button>
-                            </>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );

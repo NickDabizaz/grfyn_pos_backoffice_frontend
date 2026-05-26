@@ -96,8 +96,7 @@ export default function BPK() {
     setSelectedId(g.idbpk === selectedId ? null : g.idbpk);
   };
 
-  const handleApprove = async (e, id) => {
-    e.stopPropagation();
+  const handleApprove = async () => {
     if (!canAccess(access, 'approve')) return toast.error('Tidak memiliki akses approve');
     const confirmed = await confirm({
       title: 'Approve BPK',
@@ -108,7 +107,7 @@ export default function BPK() {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/bpk-jual/${id}/approve`);
+      await api.put(`/bpk-jual/${selectedRow.idbpk}/approve`);
       toast.success('BPK diapprove');
       loadData();
       requestRefresh('penjualan.so');
@@ -117,8 +116,7 @@ export default function BPK() {
     }
   };
 
-  const handleUnapprove = async (e, id) => {
-    e.stopPropagation();
+  const handleUnapprove = async () => {
     if (!canAccess(access, 'batalapprove')) return toast.error('Tidak memiliki akses batal approve');
     const confirmed = await confirm({
       title: 'Batal Approve BPK',
@@ -129,7 +127,7 @@ export default function BPK() {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/bpk-jual/${id}/unapprove`);
+      await api.put(`/bpk-jual/${selectedRow.idbpk}/unapprove`);
       toast.success('Approve BPK dibatalkan');
       loadData();
       requestRefresh('penjualan.so');
@@ -171,6 +169,18 @@ export default function BPK() {
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100">
               <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'approve') && (
+            <button onClick={handleApprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
+            <button onClick={handleUnapprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Approve
             </button>
           )}
           {canAccess(access, 'tambah') && <button onClick={handleTambah}
@@ -227,12 +237,11 @@ export default function BPK() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Customer</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data BPK</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data BPK</td></tr>
                 )}
                 {paginatedItems.map((g) => (
                   <tr key={g.idbpk}
@@ -246,22 +255,6 @@ export default function BPK() {
                     <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(g.grandtotal)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[g.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{g.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {g.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
-                          <button onClick={(e) => handleUnapprove(e, g.idbpk)}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">
-                            <XCircle className="w-3 h-3" /> Batal Approve
-                          </button>
-                        )}
-                        {g.status === 'DRAFT' && canAccess(access, 'approve') && (
-                          <button onClick={(e) => handleApprove(e, g.idbpk)}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
-                            <CheckCircle className="w-3 h-3" /> Approve
-                          </button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}

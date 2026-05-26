@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Search, RefreshCw, CheckCircle, XCircle, Calendar } from 'lucide-react';
@@ -36,8 +36,10 @@ export default function Cuti() {
   const [filterStatus, setFilterStatus] = useState('');
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const openTab = useTabStore((s) => s.openTab);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
   const { access } = useMenuAccess('sdm.cuti');
   const canTambah = canAccess(access, 'tambah');
   const canApprove = canAccess(access, 'approve');
@@ -69,15 +71,29 @@ export default function Cuti() {
   };
 
   const handleEdit = (d) => {
+    if (!d) return;
     if (d.status !== 'DRAFT') { toast.error('Hanya cuti DRAFT yang bisa diedit'); return; }
-    openTab({ label: `Edit Cuti`, icon: Pencil, component: CutiForm, props: { mode: 'edit', id: d.idcuti, data: d, onSuccess: load }, type: 'form_edit' });
+    openTab({ label: 'Edit Cuti', icon: Pencil, component: CutiForm, props: { mode: 'edit', id: d.idcuti, data: d, onSuccess: load }, type: 'form_edit' });
   };
 
-  const handleApprove = async (d) => {
-    const ok = await confirm({ message: `Approve cuti ${d.namakaryawan} (${d.jeniscuti})?` });
+  const handleRowClick = (d) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === d.idcuti && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(d);
+      return;
+    }
+    lastRowClickRef.current = { id: d.idcuti, at: now };
+    setSelectedId(d.idcuti === selectedId ? null : d.idcuti);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedRow) return;
+    const ok = await confirm({ message: `Approve cuti ${selectedRow.namakaryawan} (${selectedRow.jeniscuti})?` });
     if (!ok) return;
     try {
-      await api.put(`/cuti/${d.idcuti}/approve`);
+      await api.put(`/cuti/${selectedRow.idcuti}/approve`);
       toast.success('Cuti di-approve dan absensi otomatis dibuat');
       load();
     } catch (err) {
@@ -85,11 +101,12 @@ export default function Cuti() {
     }
   };
 
-  const handleReject = async (d) => {
-    const ok = await confirm({ message: `Tolak cuti ${d.namakaryawan}?` });
+  const handleReject = async () => {
+    if (!selectedRow) return;
+    const ok = await confirm({ message: `Tolak cuti ${selectedRow.namakaryawan}?` });
     if (!ok) return;
     try {
-      await api.put(`/cuti/${d.idcuti}/reject`);
+      await api.put(`/cuti/${selectedRow.idcuti}/reject`);
       toast.success('Cuti ditolak');
       load();
     } catch (err) {
@@ -97,17 +114,21 @@ export default function Cuti() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
+    if (!selectedRow) return;
     const ok = await confirm({ message: 'Hapus pengajuan cuti ini?' });
     if (!ok) return;
     try {
-      await api.delete(`/cuti/${id}`);
+      await api.delete(`/cuti/${selectedRow.idcuti}`);
       toast.success('Cuti dihapus');
+      setSelectedId(null);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal hapus');
     }
   };
+
+  const selectedRow = data.find(d => d.idcuti === selectedId);
 
   return (
     <div className="flex flex-col h-full">
@@ -117,8 +138,28 @@ export default function Cuti() {
           <p className="text-sm text-dark-300">Manajemen pengajuan dan persetujuan cuti</p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedRow && selectedRow.status === 'DRAFT' && canApprove && (
+            <button onClick={handleApprove} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canApprove && (
+            <button onClick={handleReject} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Tolak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canTambah && (
+            <button onClick={() => handleEdit(selectedRow)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-sm font-semibold hover:bg-blue-100 transition-colors">
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canTambah && (
+            <button onClick={handleDelete} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+              <Trash2 className="w-4 h-4" /> Hapus
+            </button>
+          )}
           {canTambah && (
-            <button onClick={handleTambah} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold">
+            <button onClick={handleTambah} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
               <Plus className="w-4 h-4" /> Ajukan Cuti
             </button>
           )}
@@ -168,19 +209,24 @@ export default function Cuti() {
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Lama</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Keterangan</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-28">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedItems.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-dark-300">Tidak ada data cuti</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-dark-300">Tidak ada data cuti</td></tr>
               )}
               {paginatedItems.map((d) => {
                 const tglawal = new Date(d.tglawal);
                 const tglakhir = new Date(d.tglakhir);
                 const diffDays = Math.round((tglakhir - tglawal) / 86400000) + 1;
+                const isSelected = selectedId === d.idcuti;
                 return (
-                  <tr key={d.idcuti} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
+                  <tr key={d.idcuti}
+                    onClick={() => handleRowClick(d)}
+                    onDoubleClick={() => handleEdit(d)}
+                    className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                      isSelected ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'
+                    }`}>
                     <td className="px-4 py-3 font-medium text-dark-500">{d.namakaryawan}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${JENIS_BADGE[d.jeniscuti] || 'bg-gray-100 text-gray-600'}`}>{d.jeniscuti}</span>
@@ -192,30 +238,6 @@ export default function Cuti() {
                     <td className="px-4 py-3 text-dark-400 text-xs max-w-xs truncate">{d.keterangan || '-'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGE[d.status] || 'bg-gray-100 text-gray-500'}`}>{d.status}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {canApprove && d.status === 'DRAFT' && (
-                          <>
-                            <button onClick={() => handleApprove(d)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-dark-300 hover:text-emerald-600" title="Approve">
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleReject(d)} className="p-1.5 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500" title="Tolak">
-                              <XCircle className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                        {canTambah && d.status === 'DRAFT' && (
-                          <>
-                            <button onClick={() => handleEdit(d)} className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-300 hover:text-primary-500">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete(d.idcuti)} className="p-1.5 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 );

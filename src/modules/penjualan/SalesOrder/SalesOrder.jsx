@@ -97,8 +97,7 @@ export default function SalesOrder() {
     setSelectedId(so.idso === selectedId ? null : so.idso);
   };
 
-  const handleApprove = async (e, id) => {
-    e.stopPropagation();
+  const handleApprove = async () => {
     if (!canAccess(access, 'approve')) return toast.error('Tidak memiliki akses approve');
     const confirmed = await confirm({
       title: 'Approve Sales Order',
@@ -109,7 +108,7 @@ export default function SalesOrder() {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/sales-order/${id}/approve`);
+      await api.put(`/sales-order/${selectedRow.idso}/approve`);
       toast.success('Sales Order diapprove');
       loadData();
     } catch (err) {
@@ -117,8 +116,7 @@ export default function SalesOrder() {
     }
   };
 
-  const handleBatal = async (e, id) => {
-    e.stopPropagation();
+  const handleBatalTransaksi = async () => {
     if (!canAccess(access, 'bataltransaksi')) return toast.error('Tidak memiliki akses batal transaksi');
     const confirmed = await confirm({
       title: 'Batalkan Sales Order',
@@ -129,7 +127,7 @@ export default function SalesOrder() {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/sales-order/${id}/batal`);
+      await api.put(`/sales-order/${selectedRow.idso}/batal`);
       toast.success('Sales Order dibatalkan');
       loadData();
     } catch (err) {
@@ -137,8 +135,7 @@ export default function SalesOrder() {
     }
   };
 
-  const handleUnapprove = async (e, id) => {
-    e.stopPropagation();
+  const handleUnapprove = async () => {
     if (!canAccess(access, 'batalapprove')) return toast.error('Tidak memiliki akses batal approve');
     const confirmed = await confirm({
       title: 'Batal Approve Sales Order',
@@ -149,7 +146,7 @@ export default function SalesOrder() {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/sales-order/${id}/unapprove`);
+      await api.put(`/sales-order/${selectedRow.idso}/unapprove`);
       toast.success('Approve Sales Order dibatalkan');
       loadData();
     } catch (err) {
@@ -190,6 +187,24 @@ export default function SalesOrder() {
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100">
               <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'approve') && (
+            <button onClick={handleApprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
+            <button onClick={handleUnapprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && (
+            <button onClick={handleBatalTransaksi}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+              Batal Transaksi
             </button>
           )}
           {canAccess(access, 'tambah') && <button onClick={handleTambah}
@@ -256,12 +271,11 @@ export default function SalesOrder() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Customer</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data sales order</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data sales order</td></tr>
                 )}
                 {paginatedItems.map((so) => (
                   <tr key={so.idso}
@@ -274,25 +288,6 @@ export default function SalesOrder() {
                     <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(so.grandtotal)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[so.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{so.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {so.status === 'DRAFT' && (
-                          <>
-                            {canAccess(access, 'approve') && <button onClick={(e) => handleApprove(e, so.idso)} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
-                              <CheckCircle className="w-3 h-3" /> Approve
-                            </button>}
-                            {canAccess(access, 'bataltransaksi') && <button onClick={(e) => handleBatal(e, so.idso)} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100">
-                              <XCircle className="w-3 h-3" /> Batal
-                            </button>}
-                          </>
-                        )}
-                        {so.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
-                          <button onClick={(e) => handleUnapprove(e, so.idso)} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">
-                            <XCircle className="w-3 h-3" /> Batal Approve
-                          </button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}

@@ -9,15 +9,16 @@ let tabIdCounter = 0;
 // because React components can't be stored in JSON. On hydration, the component
 // field is left undefined — TabContent's <Suspense> guard handles the lazy re-attach.
 const tabToPersisted = (tab) => ({
-  id      : tab.id,
-  label   : tab.label,
-  icon    : null,        // functions can't be serialised
-  kodemenu: tab.kodemenu,
-  type    : tab.type,
-  closable: tab.closable,
-  props   : tab.props,
-  state   : tab.state,
-  dirty   : tab.dirty,
+  id         : tab.id,
+  label      : tab.label,
+  icon       : null,        // functions can't be serialised
+  kodemenu   : tab.kodemenu,
+  type       : tab.type,
+  closable   : tab.closable,
+  props      : tab.props,
+  state      : tab.state,
+  dirty      : tab.dirty,
+  parentTabId: tab.parentTabId ?? null,
 });
 
 const useTabStore = create(
@@ -31,6 +32,7 @@ const useTabStore = create(
 
         openTab: (config) => {
           const id  = ++tabIdCounter;
+          const isFormTab = config.type === 'form_add' || config.type === 'form_edit';
           const tab = {
             id,
             label    : config.label || 'Untitled',
@@ -42,6 +44,7 @@ const useTabStore = create(
             state    : {},
             dirty    : false,
             closable : config.closable !== false,
+            parentTabId: isFormTab ? (config.parentTabId ?? get().activeTabId) : null,
           };
 
           set(state => {
@@ -71,12 +74,19 @@ const useTabStore = create(
           set(state => {
             const idx       = state.tabs.findIndex(t => sameId(t.id, targetId));
             if (idx === -1) return state;
+            const closingTab = state.tabs[idx];
             const newTabs   = state.tabs.filter(t => !sameId(t.id, targetId));
             let   newActive = state.activeTabId;
             if (sameId(state.activeTabId, targetId)) {
-              newActive = idx >= newTabs.length
-                ? newTabs[newTabs.length - 1]?.id ?? null
-                : newTabs[idx]?.id ?? null;
+              const parentId = closingTab?.parentTabId;
+              const parentExists = parentId && newTabs.some(t => sameId(t.id, parentId));
+              if (parentExists) {
+                newActive = parentId;
+              } else {
+                newActive = idx >= newTabs.length
+                  ? newTabs[newTabs.length - 1]?.id ?? null
+                  : newTabs[idx]?.id ?? null;
+              }
             }
             return {
               tabs            : newTabs,
