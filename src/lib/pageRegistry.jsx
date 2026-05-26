@@ -3,6 +3,9 @@ import {
   LayoutDashboard, Package, ShoppingBag, Warehouse,
   ReceiptText, Coins, FileBarChart, Settings, UserCog, MapPin,
   Calculator, Undo2, Wallet, ClipboardList, CreditCard,
+  Tag, Layers, Star, AlertTriangle, Cpu, PiggyBank,
+  CalendarOff, Clock, ScanBarcode, Webhook, Globe,
+  Download,
 } from 'lucide-react';
 
 // ── Lazy-loaded page components ───────────────────────────────────────────────
@@ -38,6 +41,19 @@ const LaporanStokSekarang  = lazy(() => import('../modules/laporan/LaporanStokSe
 const LaporanStokKartuStok = lazy(() => import('../modules/laporan/LaporanStokKartuStok'));
 const LaporanStokTransaksi = lazy(() => import('../modules/laporan/LaporanStokTransaksi'));
 const LaporanAkuntansi     = lazy(() => import('../modules/laporan/LaporanAkuntansi'));
+
+// ── New feature pages ─────────────────────────────────────────────────────────
+const Diskon             = lazy(() => import('../modules/penjualan/Diskon/Diskon'));
+const HargaLevel         = lazy(() => import('../modules/master/HargaLevel/HargaLevel'));
+const Poin               = lazy(() => import('../modules/master/Poin/Poin'));
+const AlertStokMin       = lazy(() => import('../modules/stok/AlertStokMin/AlertStokMin'));
+const BatchLot           = lazy(() => import('../modules/stok/BatchLot/BatchLot'));
+const AsetTetap          = lazy(() => import('../modules/aset/AsetTetap'));
+const Anggaran           = lazy(() => import('../modules/keuangan/Anggaran/Anggaran'));
+const Cuti               = lazy(() => import('../modules/hr/Cuti/Cuti'));
+const Lembur             = lazy(() => import('../modules/hr/Lembur/Lembur'));
+const WebhookPage        = lazy(() => import('../modules/setting/Webhook/Webhook'));
+const LaporanExport      = lazy(() => import('../modules/laporan/LaporanExport'));
 
 const registry = {
   'dashboard': {
@@ -105,6 +121,19 @@ const registry = {
   'laporan.akuntansi.jurnal'   : { component: LaporanAkuntansi, label: 'Jurnal Transaksi', icon: FileBarChart, props: { type: 'jurnal' } },
   'laporan.akuntansi.bukubesar': { component: LaporanAkuntansi, label: 'Buku Besar',       icon: FileBarChart, props: { type: 'buku-besar' } },
   'laporan.akuntansi.neraca'   : { component: LaporanAkuntansi, label: 'Neraca',           icon: FileBarChart, props: { type: 'neraca' } },
+
+  // New features
+  'penjualan.diskon'  : { component: Diskon,       label: 'Diskon & Promo',       icon: Tag },
+  'master.hargalevel' : { component: HargaLevel,   label: 'Level Harga',          icon: Layers },
+  'master.poin'       : { component: Poin,         label: 'Poin Member',          icon: Star },
+  'stok.alertstok'    : { component: AlertStokMin, label: 'Alert Stok Minimum',   icon: AlertTriangle },
+  'stok.batchlot'     : { component: BatchLot,     label: 'Batch / Lot',          icon: ScanBarcode },
+  'aset.tetap'        : { component: AsetTetap,    label: 'Aset Tetap',           icon: Cpu },
+  'keuangan.anggaran' : { component: Anggaran,     label: 'Anggaran',             icon: PiggyBank },
+  'sdm.cuti'          : { component: Cuti,         label: 'Cuti',                 icon: CalendarOff },
+  'sdm.lembur'        : { component: Lembur,       label: 'Lembur',               icon: Clock },
+  'setting.webhook'   : { component: WebhookPage,  label: 'Webhook',              icon: Globe },
+  'laporan.export'    : { component: LaporanExport,label: 'Export Laporan',       icon: Download },
 
   // Setting
   'setting': { component: Setting, label: 'Setting Perusahaan', icon: Settings },

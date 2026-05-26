@@ -9,13 +9,16 @@ import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, LogOut, Store, ChevronDown, ReceiptText,
   Coins, UserCog, MapPin, ClipboardList, Users, Wallet, CreditCard,
+  Tag, Layers, Star, AlertTriangle, Cpu, PiggyBank,
+  CalendarOff, Clock, ScanBarcode, Globe, Download,
 } from 'lucide-react';
 
 const iconMap = {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Warehouse,
   FileBarChart, Settings, Store, ReceiptText, Coins, UserCog, MapPin, ClipboardList,
-  Users, Wallet,
-  CreditCard,
+  Users, Wallet, CreditCard,
+  Tag, Layers, Star, AlertTriangle, Cpu, PiggyBank,
+  CalendarOff, Clock, ScanBarcode, Globe, Download,
 };
 
 function getIcon(name) {

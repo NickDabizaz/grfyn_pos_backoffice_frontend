@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import useTabStore from '../store/tabStore';
-import { X, AlertTriangle, FileBarChart } from 'lucide-react';
+import { X, AlertTriangle, FileBarChart, Plus, FileText } from 'lucide-react';
 
 export default function TabBar() {
   const { tabs, activeTabId, setActiveTab, closeTab, showMemoryWarning, dismissMemoryWarning } = useTabStore();
@@ -59,7 +59,14 @@ export default function TabBar() {
                 : 'border-transparent text-dark-400 hover:text-dark-600 hover:bg-warm-50'
               }`}
           >
-            {(() => { const Icon = tab.icon ?? (tab.type === 'report' ? FileBarChart : null); return Icon ? <Icon className="w-3.5 h-3.5" /> : null; })()}
+            {(() => {
+              let Icon;
+              if (tab.type === 'form_add' || tab.type === 'form_edit') Icon = Plus;
+              else if (tab.type === 'report_result') Icon = FileText;
+              else if (tab.type === 'report') Icon = FileBarChart;
+              else Icon = tab.icon ?? null;
+              return Icon ? <Icon className="w-3.5 h-3.5" /> : null;
+            })()}
             <span className="max-w-[160px] truncate">{tab.label}</span>
             {tab.dirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
             {tab.closable && (

@@ -9,6 +9,30 @@ let isRefreshing = false;
 let pendingQueue = [];
 let proactiveRefreshTimer = null;
 
+// ── Refresh token rotation helpers ────────────────────────────────────────────
+const REFRESH_TOKEN_KEY = 'grfyn_refresh_token';
+
+export function saveRefreshToken(token) {
+  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function clearRefreshToken() {
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export async function revokeRefreshToken() {
+  const rt = getRefreshToken();
+  if (!rt) return;
+  try {
+    await axios.post(`${api.defaults.baseURL}/auth/token/revoke`, { refreshToken: rt }, { timeout: 10000 });
+  } catch {}
+  clearRefreshToken();
+}
+
 const drainQueue = (token) => {
   pendingQueue.forEach(prom => prom.resolve(token));
   pendingQueue = [];
@@ -43,6 +67,34 @@ const logoutExpiredSession = async () => {
   }
 };
 
+async function doRefresh(token) {
+  const rt = getRefreshToken();
+  // Prefer rotation endpoint if refresh token available
+  if (rt) {
+    try {
+      const { data } = await axios.post(`${api.defaults.baseURL}/auth/token/refresh`, { refreshToken: rt }, { timeout: 15000 });
+      localStorage.setItem('grfyn_token', data.token);
+      localStorage.setItem('grfyn_user', JSON.stringify(data.user));
+      if (data.refreshToken) saveRefreshToken(data.refreshToken);
+      import('../store/authStore.js').then(({ useAuthStore }) => {
+        useAuthStore.getState().login(data.token, data.user);
+      });
+      return data.token;
+    } catch {}
+  }
+  // Fallback to legacy refresh endpoint
+  const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 15000,
+  });
+  localStorage.setItem('grfyn_token', data.token);
+  localStorage.setItem('grfyn_user', JSON.stringify(data.user));
+  import('../store/authStore.js').then(({ useAuthStore }) => {
+    useAuthStore.getState().login(data.token, data.user);
+  });
+  return data.token;
+}
+
 export const scheduleProactiveRefresh = () => {
   clearProactiveRefresh();
   // Refresh token setiap 1 jam 45 menit (token expire 2 jam)
@@ -50,15 +102,7 @@ export const scheduleProactiveRefresh = () => {
     const token = localStorage.getItem('grfyn_token');
     if (!token) return;
     try {
-      const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 15000,
-      });
-      localStorage.setItem('grfyn_token', data.token);
-      localStorage.setItem('grfyn_user', JSON.stringify(data.user));
-      import('../store/authStore.js').then(({ useAuthStore }) => {
-        useAuthStore.getState().login(data.token, data.user);
-      });
+      await doRefresh(token);
     } catch {
       // Biarkan interceptor response menangani jika refresh gagal
     }
@@ -75,16 +119,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     const token = localStorage.getItem('grfyn_token');
     if (token) {
-      axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 15000,
-      }).then(({ data }) => {
-        localStorage.setItem('grfyn_token', data.token);
-        localStorage.setItem('grfyn_user', JSON.stringify(data.user));
-        import('../store/authStore.js').then(({ useAuthStore }) => {
-          useAuthStore.getState().login(data.token, data.user);
-        });
-      }).catch(() => {
+      doRefresh(token).catch(() => {
         // Biarkan interceptor menangani
       });
     }
@@ -131,22 +166,12 @@ api.interceptors.response.use(
       if (token) {
         isRefreshing = true;
         try {
-          const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 15000,
-          });
-
-          localStorage.setItem('grfyn_token', data.token);
-          localStorage.setItem('grfyn_user', JSON.stringify(data.user));
-
-          import('../store/authStore.js').then(({ useAuthStore }) => {
-            useAuthStore.getState().login(data.token, data.user);
-          });
+          const newToken = await doRefresh(token);
 
           isRefreshing = false;
-          drainQueue(data.token);
+          drainQueue(newToken);
 
-          originalConfig.headers.Authorization = `Bearer ${data.token}`;
+          originalConfig.headers.Authorization = `Bearer ${newToken}`;
           return api.request(originalConfig);
         } catch {
           isRefreshing = false;

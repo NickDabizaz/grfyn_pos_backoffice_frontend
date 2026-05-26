@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today } from '../../../lib/utils';
@@ -71,6 +71,7 @@ export default function ReturJual({ isActive }) {
   const requestRefresh = useTabStore(s => s.requestRefresh);
   const refreshToken = useTabStore(s => s.refreshTokens?.['penjualan.retur']);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
 
   const [retur, setRetur]           = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -123,8 +124,8 @@ export default function ReturJual({ isActive }) {
     }
   };
 
-  const handleApprove = async (e, id) => {
-    e.stopPropagation();
+  const handleApprove = async () => {
+    if (!selectedRow) return;
     const confirmed = await confirm({
       title: 'Approve Retur Penjualan',
       message: 'Approve Retur Penjualan ini?',
@@ -134,7 +135,7 @@ export default function ReturJual({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returjual/${id}/approve`);
+      await api.put(`/returjual/${selectedRow.idreturjual}/approve`);
       toast.success('Retur Penjualan diapprove');
       loadRetur();
       requestRefresh('penjualan.transaksi');
@@ -144,10 +145,20 @@ export default function ReturJual({ isActive }) {
     }
   };
 
-  const handleRowClick = (r) => setSelectedId(r.idreturjual === selectedId ? null : r.idreturjual);
+  const handleRowClick = (r) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === r.idreturjual && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(r);
+      return;
+    }
+    lastRowClickRef.current = { id: r.idreturjual, at: now };
+    setSelectedId(r.idreturjual === selectedId ? null : r.idreturjual);
+  };
 
-  const handleCancel = async (e, id) => {
-    e.stopPropagation();
+  const handleBatalTransaksi = async () => {
+    if (!selectedRow) return;
     const confirmed = await confirm({
       title: 'Batalkan Retur',
       message: 'Batalkan retur DRAFT ini?',
@@ -157,9 +168,9 @@ export default function ReturJual({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returjual/${id}/cancel`);
+      await api.put(`/returjual/${selectedRow.idreturjual}/cancel`);
       toast.success('Retur dibatalkan');
-      if (selectedId === id) setSelectedId(null);
+      setSelectedId(null);
       loadRetur();
       requestRefresh('penjualan.transaksi');
       requestRefresh('penjualan');
@@ -168,8 +179,8 @@ export default function ReturJual({ isActive }) {
     }
   };
 
-  const handleUnapprove = async (e, id) => {
-    e.stopPropagation();
+  const handleUnapprove = async () => {
+    if (!selectedRow) return;
     const confirmed = await confirm({
       title: 'Batal Approve Retur Penjualan',
       message: 'Kembalikan Retur Penjualan ini ke DRAFT? Kartu stok dan kartu piutang retur akan dihapus.',
@@ -179,7 +190,7 @@ export default function ReturJual({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/returjual/${id}/unapprove`);
+      await api.put(`/returjual/${selectedRow.idreturjual}/unapprove`);
       toast.success('Approve Retur Penjualan dibatalkan');
       loadRetur();
       requestRefresh('penjualan.transaksi');
@@ -214,6 +225,24 @@ export default function ReturJual({ isActive }) {
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && (
+            <button onClick={handleApprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && (
+            <button onClick={handleUnapprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && (
+            <button onClick={handleBatalTransaksi}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+              Batal Transaksi
             </button>
           )}
           <button onClick={handleTambah}
@@ -288,12 +317,11 @@ export default function ReturJual({ isActive }) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Jual</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data retur</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data retur</td></tr>
                 )}
                 {paginatedItems.map((r) => {
                   const isSelected = selectedId === r.idreturjual;
@@ -323,31 +351,6 @@ export default function ReturJual({ isActive }) {
                         }`}>
                           {r.status || 'DRAFT'}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {r.status === 'APPROVED' && (
-                            <button
-                              onClick={(e) => handleUnapprove(e, r.idreturjual)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
-                              <XCircle className="w-3 h-3" /> Batal Approve
-                            </button>
-                          )}
-                          {r.status === 'DRAFT' && (
-                            <>
-                              <button
-                                onClick={(e) => handleApprove(e, r.idreturjual)}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
-                                <CheckCircle className="w-3 h-3" /> Approve
-                              </button>
-                              <button
-                                onClick={(e) => handleCancel(e, r.idreturjual)}
-                                className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                                Hapus
-                              </button>
-                            </>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );

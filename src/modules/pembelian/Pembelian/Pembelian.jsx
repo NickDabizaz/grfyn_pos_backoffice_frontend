@@ -149,8 +149,7 @@ export default function Pembelian({ isActive }) {
     }
   };
 
-  const handleApprove = async (e, id) => {
-    e.stopPropagation();
+  const handleApprove = async () => {
     if (!canAccess(access, 'approve')) return toast.error('Tidak memiliki akses approve');
     const confirmed = await confirm({
       title: 'Approve Pembelian',
@@ -161,7 +160,7 @@ export default function Pembelian({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/beli/${id}/approve`);
+      await api.put(`/beli/${selectedRow.idbeli}/approve`);
       toast.success('Pembelian diapprove');
       loadBeli();
       requestRefresh('pembelian.bpb');
@@ -182,8 +181,7 @@ export default function Pembelian({ isActive }) {
     setSelectedId(b.idbeli === selectedId ? null : b.idbeli);
   };
 
-  const handleCancel = async (e, id) => {
-    e.stopPropagation();
+  const handleBatalTransaksi = async () => {
     if (!canAccess(access, 'bataltransaksi')) return toast.error('Tidak memiliki akses batal transaksi');
     const confirmed = await confirm({
       title: 'Batalkan Pembelian',
@@ -194,9 +192,9 @@ export default function Pembelian({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/beli/${id}/cancel`);
+      await api.put(`/beli/${selectedRow.idbeli}/cancel`);
       toast.success('Pembelian dibatalkan');
-      if (selectedId === id) setSelectedId(null);
+      if (selectedId === selectedRow.idbeli) setSelectedId(null);
       loadBeli();
       requestRefresh('pembelian.bpb');
     } catch (err) {
@@ -204,11 +202,10 @@ export default function Pembelian({ isActive }) {
     }
   };
 
-  const handleUnapprove = async (e, id) => {
-    e.stopPropagation();
+  const handleUnapprove = async () => {
     if (!canAccess(access, 'batalapprove')) return toast.error('Tidak memiliki akses batal approve');
     try {
-      const { data: check } = await api.get(`/beli/${id}/check-edit`);
+      const { data: check } = await api.get(`/beli/${selectedRow.idbeli}/check-edit`);
       if (!check.canEdit) {
         return toast.error(check.message || 'Hapus pelunasan hutang terlebih dahulu');
       }
@@ -222,7 +219,7 @@ export default function Pembelian({ isActive }) {
     });
     if (!confirmed) return;
     try {
-      await api.put(`/beli/${id}/unapprove`);
+      await api.put(`/beli/${selectedRow.idbeli}/unapprove`);
       toast.success('Approve pembelian dibatalkan');
       loadBeli();
       requestRefresh('pembelian.bpb');
@@ -271,6 +268,24 @@ export default function Pembelian({ isActive }) {
             <button onClick={handleCetak}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100 transition-colors">
               <Printer className="w-4 h-4" /> Cetak
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'approve') && (
+            <button onClick={handleApprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
+            <button onClick={handleUnapprove}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && (
+            <button onClick={handleBatalTransaksi}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+              Batal Transaksi
             </button>
           )}
           {canAccess(access, 'tambah') && <button onClick={handleTambah}
@@ -374,12 +389,11 @@ export default function Pembelian({ isActive }) {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Jenis</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data pembelian</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data pembelian</td></tr>
                 )}
                 {paginatedItems.map((b) => {
                   const isSelected = selectedId === b.idbeli;
@@ -413,29 +427,6 @@ export default function Pembelian({ isActive }) {
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">APPROVED</span>
                         ) : (
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100">DRAFT</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {b.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
-                          <button
-                            onClick={(e) => handleUnapprove(e, b.idbeli)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
-                            <XCircle className="w-3 h-3" /> Batal Approve
-                          </button>
-                        )}
-                        {b.status === 'DRAFT' && (canAccess(access, 'approve') || canAccess(access, 'bataltransaksi')) && (
-                          <div className="flex items-center justify-center gap-1">
-                            {canAccess(access, 'approve') && <button
-                              onClick={(e) => handleApprove(e, b.idbeli)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
-                              <CheckCircle className="w-3 h-3" /> Approve
-                            </button>}
-                            {canAccess(access, 'bataltransaksi') && <button
-                              onClick={(e) => handleCancel(e, b.idbeli)}
-                              className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                              Hapus
-                            </button>}
-                          </div>
                         )}
                       </td>
                     </tr>

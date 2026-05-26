@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today, toDateInputValue } from '../../../lib/utils';
@@ -42,6 +42,7 @@ export default function PelunasanHutang() {
   const user = useAuthStore(s => s.user);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
@@ -87,8 +88,20 @@ export default function PelunasanHutang() {
     }
   };
 
-  const action = async (e, row, type) => {
-    e.stopPropagation();
+  const handleRowClick = (row) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === row.idpelunasan && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(row);
+      return;
+    }
+    lastRowClickRef.current = { id: row.idpelunasan, at: now };
+    setSelectedId(row.idpelunasan === selectedId ? null : row.idpelunasan);
+  };
+
+  const action = async (type) => {
+    if (!selectedRow) return;
     const map = {
       approve: { url: 'approve', title: 'Approve Pelunasan Hutang', msg: 'Approve pelunasan hutang ini?', ok: 'Approve', access: 'approve' },
       unapprove: { url: 'unapprove', title: 'Batal Approve Pelunasan Hutang', msg: 'Kembalikan pelunasan hutang ini ke DRAFT?', ok: 'Batal Approve', access: 'batalapprove' },
@@ -98,9 +111,9 @@ export default function PelunasanHutang() {
     const ok = await confirm({ title: map.title, message: map.msg, confirmText: map.ok, cancelText: 'Tutup', variant: type === 'approve' ? 'primary' : 'danger' });
     if (!ok) return;
     try {
-      await api.put(`/pelunasanhutang/${row.idpelunasan}/${map.url}`);
+      await api.put(`/pelunasanhutang/${selectedRow.idpelunasan}/${map.url}`);
       toast.success(`${map.ok} berhasil`);
-      if (type === 'batal' && selectedId === row.idpelunasan) setSelectedId(null);
+      if (type === 'batal') setSelectedId(null);
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal proses transaksi');
@@ -124,6 +137,15 @@ export default function PelunasanHutang() {
           {selectedRow && selectedRow.status !== 'CANCELLED' && canAccess(access, 'cetak') && (
             <button onClick={handleCetak} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-600 text-sm font-semibold hover:bg-primary-100"><Printer className="w-4 h-4" /> Cetak</button>
           )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'approve') && (
+            <button onClick={() => action('approve')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors"><CheckCircle className="w-4 h-4" /> Approve</button>
+          )}
+          {selectedRow && selectedRow.status === 'APPROVED' && canAccess(access, 'batalapprove') && (
+            <button onClick={() => action('unapprove')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100 transition-colors"><XCircle className="w-4 h-4" /> Batal Approve</button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && (
+            <button onClick={() => action('batal')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">Batal Transaksi</button>
+          )}
           {canTambah && <button onClick={() => openForm()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold"><Plus className="w-4 h-4" /> Pelunasan Baru</button>}
           <button onClick={loadData} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
         </div>
@@ -140,15 +162,31 @@ export default function PelunasanHutang() {
       <div className="flex-1 overflow-auto px-6 pb-4">
         <div className="bg-white rounded-2xl border border-primary-50 overflow-hidden">
           <table className="w-full">
-            <thead className="sticky top-0 z-10"><tr className="border-b border-primary-50 bg-warm-50/50"><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Tanggal</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Supplier</th><th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Metode</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-44">Aksi</th></tr></thead>
+            <thead className="sticky top-0 z-10"><tr className="border-b border-primary-50 bg-warm-50/50"><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Tanggal</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Supplier</th><th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Metode</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th></tr></thead>
             <tbody>
-              {paginatedItems.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data</td></tr>}
-              {paginatedItems.map(ph => (
-                <tr key={ph.idpelunasan} onClick={() => setSelectedId(ph.idpelunasan)} onDoubleClick={() => handleEdit(ph)} className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === ph.idpelunasan ? 'bg-warm-100 ring-1 ring-inset ring-warm-200' : 'hover:bg-warm-50/30'}`}>
-                  <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{ph.kodepelunasan}</td><td className="px-4 py-3 text-dark-400 text-xs">{String(ph.tgltrans || '').slice(0, 10)}</td><td className="px-4 py-3 text-dark-500">{ph.namasupplier || '-'}</td><td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(ph.total_amount)}</td><td className="px-4 py-3 text-center"><span className="badge badge-sm badge-primary">{ph.metodbayar}</span></td><td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[ph.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{ph.status}</span></td>
-                  <td className="px-4 py-3 text-center"><div className="flex items-center justify-center gap-1">{ph.status === 'APPROVED' && canAccess(access, 'batalapprove') && <button onClick={(e) => action(e, ph, 'unapprove')} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100"><XCircle className="w-3 h-3" /> Batal Approve</button>}{ph.status === 'DRAFT' && canAccess(access, 'approve') && <button onClick={(e) => action(e, ph, 'approve')} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><CheckCircle className="w-3 h-3" /> Approve</button>}{ph.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && <button onClick={(e) => action(e, ph, 'batal')} className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100">Batal</button>}</div></td>
-                </tr>
-              ))}
+              {paginatedItems.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data</td></tr>}
+              {paginatedItems.map(ph => {
+                const isSelected = selectedId === ph.idpelunasan;
+                return (
+                  <tr key={ph.idpelunasan}
+                    onClick={() => handleRowClick(ph)}
+                    onDoubleClick={() => handleEdit(ph)}
+                    className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                      ph.status === 'CANCELLED'
+                        ? 'bg-red-50/30 opacity-60'
+                        : isSelected
+                          ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
+                          : 'hover:bg-warm-50/30'
+                    }`}>
+                    <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{ph.kodepelunasan}</td>
+                    <td className="px-4 py-3 text-dark-400 text-xs">{String(ph.tgltrans || '').slice(0, 10)}</td>
+                    <td className="px-4 py-3 text-dark-500">{ph.namasupplier || '-'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(ph.total_amount)}</td>
+                    <td className="px-4 py-3 text-center"><span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{ph.metodbayar}</span></td>
+                    <td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[ph.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{ph.status}</span></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <Pagination page={page} totalPages={totalPages} setPage={setPage} />
