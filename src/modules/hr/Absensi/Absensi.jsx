@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../../api/axios';
 import { today } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, Search, RefreshCw } from 'lucide-react';
+import { Plus, Search, RefreshCw, Trash2 } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
@@ -36,6 +36,17 @@ export default function Absensi() {
   useEffect(() => { resetPage(); }, [filterKaryawan, tglAwal, tglAkhir]);
 
   const handleRefresh = () => { setRefreshing(true); loadData(); setTimeout(() => setRefreshing(false), 300); };
+
+  const handleHapus = async (id, nama, tgl) => {
+    if (!confirm(`Hapus absensi "${nama}" tanggal ${tgl}?`)) return;
+    try {
+      await api.delete(`/absensi/${id}`);
+      toast.success('Absensi berhasil dihapus');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal menghapus absensi');
+    }
+  };
 
   const handleTambah = () => {
     openOrFocusTab({ label: 'Absensi Baru', icon: Plus, component: AbsensiForm, props: { onSuccess: loadData }, type: 'form_add', kodemenu: 'absensi-add' });
@@ -94,11 +105,12 @@ export default function Absensi() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Karyawan</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Keterangan</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-16">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data absensi</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data absensi</td></tr>
                 )}
                 {paginatedItems.map((a) => (
                   <tr key={a.idabsensi}
@@ -112,6 +124,13 @@ export default function Absensi() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{a.keterangan || '-'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {canUbah && (
+                        <button onClick={(e) => { e.stopPropagation(); handleHapus(a.idabsensi, a.namakaryawan, String(a.tglabsensi || '').slice(0, 10)); }} title="Hapus absensi" className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
