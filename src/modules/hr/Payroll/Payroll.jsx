@@ -2,15 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../../api/axios';
 import { formatRupiah } from '../../../lib/utils';
 import toast from 'react-hot-toast';
-import { Plus, RefreshCw, CheckCircle } from 'lucide-react';
+import { Plus, RefreshCw, CheckCircle, Trash2, RotateCcw, Eye } from 'lucide-react';
 import { usePagination } from '../../../hooks/usePagination';
 import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
 import PayrollForm from './PayrollForm';
+import PayrollDetail from './PayrollDetail';
 import { useMenuAccess, canAccess } from '../../../hooks/useMenuAccess';
 
 const STATUS_BADGE = {
   DRAFT:   'bg-amber-50 text-amber-600 border-amber-100',
+  POSTED:  'bg-emerald-50 text-emerald-600 border-emerald-100',
   POSTING: 'bg-emerald-50 text-emerald-600 border-emerald-100',
 };
 
@@ -55,6 +57,39 @@ export default function Payroll() {
     }
   };
 
+  const handleCancel = async (id, nama) => {
+    if (!confirm(`Hapus payroll DRAFT untuk "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+    try {
+      await api.delete(`/payroll/${id}`);
+      toast.success('Payroll berhasil dihapus');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal menghapus payroll');
+    }
+  };
+
+  const handleUnpost = async (id) => {
+    if (!confirm('Unpost payroll ini? Status akan kembali ke DRAFT dan jurnal akan dihapus.')) return;
+    try {
+      await api.put(`/payroll/${id}/unpost`);
+      toast.success('Payroll berhasil di-unpost');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal unpost payroll');
+    }
+  };
+
+  const handleDetail = (p) => {
+    openOrFocusTab({
+      label: `Detail ${p.namakaryawan} ${p.bulanpayroll || ''}`.trim(),
+      icon: Eye,
+      component: PayrollDetail,
+      props: { payrollId: p.idpayroll },
+      type: 'detail',
+      kodemenu: `payroll-detail-${p.idpayroll}`,
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 pt-4 pb-2 shrink-0">
@@ -89,6 +124,7 @@ export default function Payroll() {
               className="w-full px-2.5 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20">
               <option value="">Semua Status</option>
               <option value="DRAFT">DRAFT</option>
+              <option value="POSTED">POSTED</option>
               <option value="POSTING">POSTING</option>
             </select>
           </div>
@@ -109,7 +145,7 @@ export default function Payroll() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Potongan</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Bersih</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,11 +166,26 @@ export default function Payroll() {
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{p.status}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {p.status === 'DRAFT' && (
-                        <button onClick={(e) => { e.stopPropagation(); handlePosting(p.idpayroll); }} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 mx-auto">
-                          <CheckCircle className="w-3 h-3" /> Post
+                      <div className="flex items-center justify-center gap-1">
+                        {p.status === 'DRAFT' && canUbah && (
+                          <button onClick={(e) => { e.stopPropagation(); handlePosting(p.idpayroll); }} title="Post ke jurnal" className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
+                            <CheckCircle className="w-3 h-3" /> Post
+                          </button>
+                        )}
+                        {p.status === 'DRAFT' && canUbah && (
+                          <button onClick={(e) => { e.stopPropagation(); handleCancel(p.idpayroll, p.namakaryawan); }} title="Hapus payroll" className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {(p.status === 'POSTED' || p.status === 'POSTING') && canUbah && (
+                          <button onClick={(e) => { e.stopPropagation(); handleUnpost(p.idpayroll); }} title="Unpost payroll" className="text-amber-500 hover:text-amber-700 p-1 rounded hover:bg-amber-50">
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button onClick={(e) => { e.stopPropagation(); handleDetail(p); }} title="Lihat detail" className="text-primary-500 hover:text-primary-700 p-1 rounded hover:bg-primary-50">
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
