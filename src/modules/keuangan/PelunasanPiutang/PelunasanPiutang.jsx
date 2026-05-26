@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import { useAuthStore } from '../../../store/authStore';
 import { formatRupiah, today, toDateInputValue } from '../../../lib/utils';
@@ -42,6 +42,7 @@ export default function PelunasanPiutang() {
   const user = useAuthStore(s => s.user);
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
   const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -85,6 +86,18 @@ export default function PelunasanPiutang() {
     } catch {
       toast.error('Gagal memuat pelunasan piutang');
     }
+  };
+
+  const handleRowClick = (row) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === row.idpelunasan && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      handleEdit(row);
+      return;
+    }
+    lastRowClickRef.current = { id: row.idpelunasan, at: now };
+    setSelectedId(row.idpelunasan === selectedId ? null : row.idpelunasan);
   };
 
   const action = async (e, row, type) => {
@@ -143,12 +156,35 @@ export default function PelunasanPiutang() {
             <thead className="sticky top-0 z-10"><tr className="border-b border-primary-50 bg-warm-50/50"><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Tanggal</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Customer</th><th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Total</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Metode</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-44">Aksi</th></tr></thead>
             <tbody>
               {paginatedItems.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data</td></tr>}
-              {paginatedItems.map(pp => (
-                <tr key={pp.idpelunasan} onClick={() => setSelectedId(pp.idpelunasan)} onDoubleClick={() => handleEdit(pp)} className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === pp.idpelunasan ? 'bg-warm-100 ring-1 ring-inset ring-warm-200' : 'hover:bg-warm-50/30'}`}>
-                  <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{pp.kodepelunasan}</td><td className="px-4 py-3 text-dark-400 text-xs">{String(pp.tgltrans || '').slice(0, 10)}</td><td className="px-4 py-3 text-dark-500">{pp.namacustomer || '-'}</td><td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(pp.total_amount)}</td><td className="px-4 py-3 text-center"><span className="badge badge-sm badge-primary">{pp.metodbayar}</span></td><td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[pp.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{pp.status}</span></td>
-                  <td className="px-4 py-3 text-center"><div className="flex items-center justify-center gap-1">{pp.status === 'APPROVED' && canAccess(access, 'batalapprove') && <button onClick={(e) => action(e, pp, 'unapprove')} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100"><XCircle className="w-3 h-3" /> Batal Approve</button>}{pp.status === 'DRAFT' && canAccess(access, 'approve') && <button onClick={(e) => action(e, pp, 'approve')} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><CheckCircle className="w-3 h-3" /> Approve</button>}{pp.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && <button onClick={(e) => action(e, pp, 'batal')} className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100">Batal</button>}</div></td>
-                </tr>
-              ))}
+              {paginatedItems.map(pp => {
+                const isSelected = selectedId === pp.idpelunasan;
+                return (
+                  <tr key={pp.idpelunasan}
+                    onClick={() => handleRowClick(pp)}
+                    onDoubleClick={() => handleEdit(pp)}
+                    className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                      pp.status === 'CANCELLED'
+                        ? 'bg-red-50/30 opacity-60'
+                        : isSelected
+                          ? 'bg-primary-50 ring-1 ring-inset ring-primary-200'
+                          : 'hover:bg-warm-50/30'
+                    }`}>
+                    <td className="px-4 py-3 text-xs font-mono font-semibold text-dark-400">{pp.kodepelunasan}</td>
+                    <td className="px-4 py-3 text-dark-400 text-xs">{String(pp.tgltrans || '').slice(0, 10)}</td>
+                    <td className="px-4 py-3 text-dark-500">{pp.namacustomer || '-'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(pp.total_amount)}</td>
+                    <td className="px-4 py-3 text-center"><span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">{pp.metodbayar}</span></td>
+                    <td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[pp.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{pp.status}</span></td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {pp.status === 'APPROVED' && canAccess(access, 'batalapprove') && <button onClick={(e) => action(e, pp, 'unapprove')} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"><XCircle className="w-3 h-3" /> Batal Approve</button>}
+                        {pp.status === 'DRAFT' && canAccess(access, 'approve') && <button onClick={(e) => action(e, pp, 'approve')} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"><CheckCircle className="w-3 h-3" /> Approve</button>}
+                        {pp.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && <button onClick={(e) => action(e, pp, 'batal')} className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors">Batal</button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <Pagination page={page} totalPages={totalPages} setPage={setPage} />
