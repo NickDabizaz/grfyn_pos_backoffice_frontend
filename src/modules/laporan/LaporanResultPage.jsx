@@ -26,7 +26,9 @@ export default function LaporanResultPage({ url, token, label, data, type }) {
     setError('');
     try {
       const response = await fetch(normalizeReportUrl(url), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: (token || localStorage.getItem('grfyn_token'))
+          ? { Authorization: `Bearer ${token || localStorage.getItem('grfyn_token')}` }
+          : {},
       });
       const text = await response.text();
       const contentType = response.headers.get('content-type') || '';

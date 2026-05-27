@@ -70,6 +70,7 @@ const registry = {
   'master.supplier' : { component: Supplier, label: 'Supplier' },
   'master.lokasi'   : { component: Lokasi,   label: 'Lokasi',   icon: MapPin },
   'master.akun'     : { component: Akun,     label: 'Akun' },
+  'master.promo'    : { component: Diskon,   label: 'Promo',    icon: Tag },
 
   // Pembelian
   'pembelian.po'       : { component: PurchaseOrder, label: 'Purchase Order (PO)',           icon: ShoppingBag },
@@ -123,7 +124,7 @@ const registry = {
   'laporan.akuntansi.neraca'   : { component: LaporanAkuntansi, label: 'Neraca',           icon: FileBarChart, props: { type: 'neraca' } },
 
   // New features
-  'penjualan.diskon'  : { component: Diskon,       label: 'Diskon & Promo',       icon: Tag },
+  'penjualan.diskon'  : { component: Diskon,       label: 'Promo',                icon: Tag },
   'master.hargalevel' : { component: HargaLevel,   label: 'Level Harga',          icon: Layers },
   'master.poin'       : { component: Poin,         label: 'Poin Member',          icon: Star },
   'stok.alertstok'    : { component: AlertStokMin, label: 'Alert Stok Minimum',   icon: AlertTriangle },

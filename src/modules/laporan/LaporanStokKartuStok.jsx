@@ -81,7 +81,7 @@ export default function LaporanStokKartuStok() {
     openTab({
       label: 'Laporan Kartu Stok',
       component: LaporanResultPage,
-      props: { url: reportUrl(token, params), label: 'Laporan Kartu Stok' },
+      props: { url: reportUrl(token, params), token, label: 'Laporan Kartu Stok' },
       type: 'report',
       kodemenu: null,
     });

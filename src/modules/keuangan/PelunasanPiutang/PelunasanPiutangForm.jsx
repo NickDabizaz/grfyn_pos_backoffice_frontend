@@ -34,6 +34,7 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
   const [metodbayar, setMetodbayar] = useState(editData?.metodbayar || 'TUNAI');
   const [catatan, setCatatan]       = useState(editData?.catatan || '');
   const [akunList, setAkunList] = useState([]);
+  const [jurnalSetting, setJurnalSetting] = useState({});
   const [pembayaran, setPembayaran] = useState(normalizePembayaran(editData?.pembayaran || []));
 
   const [invoices, setInvoices] = useState([]);
@@ -45,7 +46,12 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get('/akun').then(r => setAkunList(r.data || [])).catch(() => {});
+    Promise.all([api.get('/akun'), api.get('/akun/setting-jurnal')])
+      .then(([akunRes, settingRes]) => {
+        setAkunList(akunRes.data || []);
+        setJurnalSetting(settingRes.data || {});
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -53,16 +59,33 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
     setLoadingInvoices(true);
     api.get(`/kartupiutang/open-invoices/${customer.idcustomer}`)
       .then(r => {
-        setInvoices(r.data || []);
+        const existingDetails = editData?.details || [];
+        const invoiceMap = new Map((r.data || []).map(inv => [inv.kodetrans, inv]));
+        if (isEdit && existingDetails.length) {
+          existingDetails.forEach(d => {
+            if (!invoiceMap.has(d.kodetrans)) {
+              const amount = parseFloat(d.amount) || 0;
+              invoiceMap.set(d.kodetrans, {
+                kodetrans: d.kodetrans,
+                tgltrans: editData?.tgltrans,
+                original_amount: amount,
+                terbayar: 0,
+                sisa: amount,
+              });
+            }
+          });
+        }
+        const invoiceRows = Array.from(invoiceMap.values());
+        setInvoices(invoiceRows);
         const sel = new Set();
         const amt = {};
-        if (isEdit && editData?.details?.length) {
-          editData.details.forEach(d => {
+        if (isEdit && existingDetails.length) {
+          existingDetails.forEach(d => {
             sel.add(d.kodetrans);
             amt[d.kodetrans] = parseFloat(d.amount) || 0;
           });
         } else {
-          (r.data || []).forEach(inv => {
+          invoiceRows.forEach(inv => {
             sel.add(inv.kodetrans);
             amt[inv.kodetrans] = parseFloat(inv.sisa) || 0;
           });
@@ -103,6 +126,9 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
     .filter(d => d.payAmount > 0);
 
   const totalBayar = computedDetails.reduce((s, d) => s + d.payAmount, 0);
+  const displayTotalBayar = isEdit && computedDetails.length === 0
+    ? parseFloat(editData?.total_amount || 0)
+    : totalBayar;
 
   const handleSubmit = async (approve = false) => {
     if (isLocked) return toast.error('Pelunasan yang sudah approve/cancel tidak bisa disimpan');
@@ -115,7 +141,7 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
     if (pembayaranPayload.some(p => !p.idakun || p.amount <= 0)) return toast.error('Lengkapi semua baris Detail Jurnal');
     if (pembayaranPayload.length > 0) {
       const totalPembayaran = pembayaranPayload.reduce((s, p) => s + p.amount, 0);
-      if (Math.abs(totalPembayaran - totalBayar) >= 0.01) {
+      if (Math.abs(totalPembayaran - displayTotalBayar) >= 0.01) {
         return toast.error('Total pembayaran (Detail Jurnal) tidak sesuai dengan total pelunasan');
       }
     }
@@ -125,7 +151,7 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
       const payload = {
         idcustomer: customer.idcustomer,
         tgltrans,
-        total_amount: totalBayar,
+        total_amount: displayTotalBayar,
         metodbayar,
         catatan,
         approve,
@@ -350,7 +376,11 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
             rows={pembayaran}
             setRows={setPembayaran}
             akunList={akunList}
-            totalBayar={totalBayar}
+            totalBayar={displayTotalBayar}
+            paymentPosition="DEBET"
+            balancingPosition="KREDIT"
+            balancingAccount={jurnalSetting.akun_piutang}
+            defaultPaymentAccount={metodbayar === 'TUNAI' ? jurnalSetting.akun_kas : jurnalSetting.akun_bank}
             disabled={isLocked}
           />
 
@@ -367,7 +397,7 @@ export default function PelunasanPiutangForm({ onSuccess, tabId, editData }) {
                 <div className="flex items-center gap-6">
                   <span className="text-xs font-bold text-dark-500 w-28 text-right">Total Bayar:</span>
                   <span className="text-xl font-bold text-accent-600 font-mono w-40 text-right">
-                    {formatRupiah(totalBayar)}
+                    {formatRupiah(displayTotalBayar)}
                   </span>
                 </div>
               </div>

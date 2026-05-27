@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2, MapPin, Users, Plus, FileText, X } from 'lucide-reac
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseBarangModal, BrowseCustomerModal, BrowseLokasiModal, BrowseBPKModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { BrowseBarangModal, BrowseCustomerModal, BrowseLokasiModal, BrowseBPKModal, PpnDropdown, getSatuanOptions, getDefaultSatuanPenjualan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
@@ -121,7 +121,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           konversi1:    item.konversi1    || 0,
           konversi2:    item.konversi2    || 0,
           stok:         item.stok         || 0,
-          satuan:       item.satuan || getDefaultSatuan(item),
+          satuan:       item.satuan || getDefaultSatuanPenjualan(item),
           jml:          String(parseInt(item.jml, 10) || 0),
           harga:        String(parseFloat(item.harga) || 0),
           diskon:       String(parseFloat(item.diskon) || 0),
@@ -190,7 +190,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           konversi1:    item.konversi1    || 0,
           konversi2:    item.konversi2    || 0,
           stok:         item.stok         || 0,
-          satuan:       item.satuan || getDefaultSatuan(item),
+          satuan:       item.satuan || getDefaultSatuanPenjualan(item),
           jml:          String(item.jml || 0),
           harga:        String(parseFloat(item.harga) || 0),
           diskon:       String(parseFloat(item.diskon) || 0),
@@ -221,7 +221,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
       konversi1:    b.konversi1    || 0,
       konversi2:    b.konversi2    || 0,
       stok:         b.stok         || 0,
-      satuan:       getDefaultSatuan(b),
+      satuan:       getDefaultSatuanPenjualan(b),
       jml:          '1',
       harga:        String(hargaJual || ''),
       diskon:       '0',
@@ -290,6 +290,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
         idlokasi:         lokasi.idlokasi,
         grandtotal:       grandTotal,
         bayar:            langsungLunas ? grandTotal : 0,
+        langsung_lunas:   langsungLunas,
         is_lunaslangsung: langsungLunas,
         idbpk:            idbpk || null,
         kodebpk:          kodebpk || null,

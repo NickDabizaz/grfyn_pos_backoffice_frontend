@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2, MapPin, Users, Plus } from 'lucide-react';
 import useTabStore from '../../../store/tabStore';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/l10n/id.js';
-import { BrowseBarangModal, BrowseCustomerModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
+import { BrowseBarangModal, BrowseCustomerModal, BrowseLokasiModal, PpnDropdown, getSatuanOptions, getDefaultSatuanPenjualan, isJmlValid, isFloatValid, parseFloatVal } from '../../../lib/formHelpers';
 import { canAccess, useMenuAccess } from '../../../hooks/useMenuAccess';
 
 function toDateInputValue(value) {
@@ -60,7 +60,7 @@ export default function SalesOrderForm({ onSuccess, tabId, editData }) {
           konversi1:       item.konversi1    || 0,
           konversi2:       item.konversi2    || 0,
           stok:            0,
-          satuan:          item.satuan || getDefaultSatuan(item),
+          satuan:          item.satuan || getDefaultSatuanPenjualan(item),
           jml:             String(parseInt(item.jml, 10) || 0),
           harga_sebelumnya: parseFloat(item.harga) || 0,
           harga:           String(parseFloat(item.harga) || 0),
@@ -94,7 +94,7 @@ export default function SalesOrderForm({ onSuccess, tabId, editData }) {
       konversi1:    b.konversi1    || 0,
       konversi2:    b.konversi2    || 0,
       stok:         b.stok         || 0,
-      satuan:           getDefaultSatuan(b),
+      satuan:           getDefaultSatuanPenjualan(b),
       jml:              '1',
       harga_sebelumnya: hargaSebelumnya,
       harga:            String(hargaSebelumnya || ''),

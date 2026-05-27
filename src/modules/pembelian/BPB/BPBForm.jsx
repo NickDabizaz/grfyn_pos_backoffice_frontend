@@ -170,6 +170,18 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
   const grandTotal = computedItems.reduce((s, i) => s + i.subtotal, 0);
 
   const isLocked = isEdit && editData?.status !== 'DRAFT';
+  const isPoLocked = !!idpo;
+
+  const clearPo = () => {
+    if (isEdit) return toast.error('PO referensi BPB tidak boleh diganti');
+    setIdpo(null);
+    setKodepo('');
+    setSupplier(null);
+    setLokasi(lokasiAuth || null);
+    setItems([]);
+  };
+
+  const showPoLockInfo = (field) => toast.error(`${field} mengikuti PO dan tidak boleh diganti`);
 
   const handleSubmit = async (approve = false) => {
     if (isLocked) return toast.error('BPB yang sudah approve tidak bisa disimpan lagi');
@@ -261,12 +273,13 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                       : <span className="text-dark-300 text-xs">Pilih PO terlebih dahulu...</span>
                     }
                   </div>
-                  <button onClick={() => setShowPOModal(true)}
+                  <button onClick={() => isEdit ? showPoLockInfo('PO referensi') : setShowPOModal(true)}
+                    disabled={isEdit}
                     className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
                     Browse PO
                   </button>
-                  {kodepo && (
-                    <button onClick={() => { setIdpo(null); setKodepo(''); }}
+                  {kodepo && !isEdit && (
+                    <button onClick={clearPo}
                       className="p-2 rounded-xl border border-red-100 text-red-400 hover:bg-red-50 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -291,9 +304,9 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                       : <span className="text-dark-300">Pilih Lokasi...</span>
                     }
                   </div>
-                  <button onClick={() => setShowLokasiModal(true)}
-                    className="px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
-                    Browse
+                  <button onClick={() => isPoLocked ? showPoLockInfo('Lokasi') : setShowLokasiModal(true)}
+                    className={`px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold transition-colors shrink-0 ${isPoLocked ? 'text-dark-300 bg-warm-50 cursor-not-allowed' : 'text-dark-400 hover:bg-warm-50'}`}>
+                    {isPoLocked ? 'Terkunci PO' : 'Browse'}
                   </button>
                 </div>
               </div>
@@ -308,9 +321,9 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
               <div className="col-span-2 order-4">
                 <label className="block text-xs font-semibold text-dark-400 mb-1.5">Supplier</label>
                 <div className="flex items-start gap-3">
-                  <button onClick={() => setShowSupplierModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors shrink-0">
-                    <Users className="w-3.5 h-3.5" /> Browse Supplier
+                  <button onClick={() => isPoLocked ? showPoLockInfo('Supplier') : setShowSupplierModal(true)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-primary-100 text-xs font-semibold transition-colors shrink-0 ${isPoLocked ? 'text-dark-300 bg-warm-50 cursor-not-allowed' : 'text-dark-400 hover:bg-warm-50'}`}>
+                    <Users className="w-3.5 h-3.5" /> {isPoLocked ? 'Supplier dari PO' : 'Browse Supplier'}
                   </button>
                   {supplier ? (
                     <div className="flex-1 grid grid-cols-4 gap-3 p-3 rounded-xl border border-primary-100 bg-warm-50/30">
@@ -348,10 +361,14 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                   </span>
                 )}
               </h3>
-              <button onClick={() => setShowBarangModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors">
-                <Plus className="w-3.5 h-3.5" /> Tambah Barang
-              </button>
+              {!isPoLocked ? (
+                <button onClick={() => setShowBarangModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Tambah Barang
+                </button>
+              ) : (
+                <span className="text-[10px] font-semibold text-dark-300">Barang mengikuti PO</span>
+              )}
             </div>
             <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full min-w-[900px] text-sm">
@@ -373,7 +390,7 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                   {computedItems.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-4 py-12 text-center text-sm text-dark-300">
-                        Pilih PO di atas untuk otomatis mengisi, atau klik <span className="font-semibold text-primary-500">Tambah Barang</span>.
+                        Pilih PO di atas untuk otomatis mengisi barang.
                       </td>
                     </tr>
                   ) : computedItems.map((item, idx) => {
@@ -414,10 +431,12 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                           <PpnDropdown value={item.ppn_mode} onChange={v => updateItem(idx, 'ppn_mode', v)} />
                         </td>
                         <td className="px-3 py-2.5">
-                          <button onClick={() => removeItem(idx)}
-                            className="p-1 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isPoLocked && (
+                            <button onClick={() => removeItem(idx)}
+                              className="p-1 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -445,6 +464,10 @@ export default function BPBForm({ onSuccess, tabId, editData }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <button onClick={() => closeTab(tabId)} disabled={loading}
+                  className="px-5 py-2 rounded-xl border border-primary-100 text-dark-400 text-sm font-semibold hover:bg-warm-50 transition-colors disabled:opacity-50">
+                  Batal
+                </button>
                 <button onClick={() => handleSubmit(false)} disabled={loading || items.length === 0 || isLocked}
                   className="px-5 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? 'Menyimpan...' : 'Simpan'}

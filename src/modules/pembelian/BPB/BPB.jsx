@@ -136,6 +136,27 @@ export default function BPB() {
     }
   };
 
+  const handleBatal = async () => {
+    if (!canAccess(access, 'bataltransaksi')) return toast.error('Tidak memiliki akses batal transaksi');
+    const confirmed = await confirm({
+      title: 'Batalkan BPB',
+      message: 'Batalkan BPB DRAFT ini? Stok penerimaan dari BPB ini akan dikembalikan.',
+      confirmText: 'Batalkan',
+      cancelText: 'Tutup',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await api.put(`/bpb/${selectedRow.idbpb}/batal`);
+      toast.success('BPB dibatalkan');
+      setSelectedId(null);
+      loadData();
+      requestRefresh('pembelian.po');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal membatalkan BPB');
+    }
+  };
+
   const handleCetak = async () => {
     if (!selectedId) return;
     if (!canAccess(access, 'cetak')) return toast.error('Tidak memiliki akses cetak');
@@ -175,6 +196,12 @@ export default function BPB() {
             <button onClick={handleApprove}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors">
               <CheckCircle className="w-4 h-4" /> Approve
+            </button>
+          )}
+          {selectedRow && selectedRow.status === 'DRAFT' && canAccess(access, 'bataltransaksi') && (
+            <button onClick={handleBatal}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-500 text-sm font-semibold hover:bg-red-100 transition-colors">
+              <XCircle className="w-4 h-4" /> Batal Transaksi
             </button>
           )}
           {selectedRow && selectedRow.status === 'APPROVED' && canAccess(access, 'batalapprove') && (

@@ -686,6 +686,11 @@ export function getDefaultSatuan(b) {
   return s ? String(s).trim() : 'PCS';
 }
 
+export function getDefaultSatuanPenjualan(b) {
+  const s = [b.satuankecil, b.satuansedang, b.satuanbesar].find(v => v && String(v).trim());
+  return s ? String(s).trim() : 'PCS';
+}
+
 export function isJmlValid(val) {
   const n = parseFloat(String(val).trim());
   return !isNaN(n) && n > 0;

@@ -34,6 +34,7 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
   const [metodbayar, setMetodbayar] = useState(editData?.metodbayar || 'TUNAI');
   const [catatan, setCatatan]       = useState(editData?.catatan || '');
   const [akunList, setAkunList] = useState([]);
+  const [jurnalSetting, setJurnalSetting] = useState({});
   const [pembayaran, setPembayaran] = useState(normalizePembayaran(editData?.pembayaran || []));
 
   // Daftar invoice hutang yang belum lunas
@@ -46,7 +47,12 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get('/akun').then(r => setAkunList(r.data || [])).catch(() => {});
+    Promise.all([api.get('/akun'), api.get('/akun/setting-jurnal')])
+      .then(([akunRes, settingRes]) => {
+        setAkunList(akunRes.data || []);
+        setJurnalSetting(settingRes.data || {});
+      })
+      .catch(() => {});
   }, []);
 
   // Load daftar invoice hutang setiap supplier berubah
@@ -361,6 +367,10 @@ export default function PelunasanHutangForm({ onSuccess, tabId, editData }) {
             setRows={setPembayaran}
             akunList={akunList}
             totalBayar={totalBayar}
+            paymentPosition="KREDIT"
+            balancingPosition="DEBET"
+            balancingAccount={jurnalSetting.akun_hutang}
+            defaultPaymentAccount={metodbayar === 'TUNAI' ? jurnalSetting.akun_kas : jurnalSetting.akun_bank}
             disabled={isLocked}
           />
 

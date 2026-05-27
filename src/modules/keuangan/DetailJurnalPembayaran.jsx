@@ -15,11 +15,45 @@ export default function DetailJurnalPembayaran({
   setRows,
   akunList,
   totalBayar,
+  paymentPosition = 'DEBET',
+  balancingPosition = 'KREDIT',
+  balancingAccount = null,
+  defaultPaymentAccount = null,
   disabled = false,
 }) {
   const totalPembayaran = rows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
   const selisih = totalPembayaran - totalBayar;
   const isBalanced = Math.abs(selisih) < 0.01;
+  const akunMap = new Map(akunList.map((akun) => [String(akun.idakun), akun]));
+
+  const accountLabel = (account) => {
+    if (!account) return '-';
+    return [account.kodeakun, account.namaakun].filter(Boolean).join(' - ');
+  };
+
+  const getAccount = (idakun) => akunMap.get(String(idakun)) || null;
+  const previewPaymentRows = rows.length > 0
+    ? rows
+    : (defaultPaymentAccount && totalBayar > 0 ? [{ idakun: defaultPaymentAccount.idakun, amount: totalBayar, isDefault: true }] : []);
+  const journalLines = [
+    ...previewPaymentRows
+      .map((row) => ({
+        posisi: paymentPosition,
+        account: getAccount(row.idakun) || (row.isDefault ? defaultPaymentAccount : null),
+        amount: parseFloat(row.amount) || 0,
+      }))
+      .filter((line) => line.amount > 0),
+    ...(balancingAccount && totalBayar > 0
+      ? [{ posisi: balancingPosition, account: balancingAccount, amount: totalBayar }]
+      : []),
+  ];
+  const totalDebet = journalLines
+    .filter((line) => line.posisi === 'DEBET')
+    .reduce((sum, line) => sum + line.amount, 0);
+  const totalKredit = journalLines
+    .filter((line) => line.posisi === 'KREDIT')
+    .reduce((sum, line) => sum + line.amount, 0);
+  const journalBalanced = journalLines.length > 0 && Math.abs(totalDebet - totalKredit) < 0.01;
 
   const updateRow = (index, field, value) => {
     setRows(rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -32,17 +66,17 @@ export default function DetailJurnalPembayaran({
     <div className="bg-white rounded-2xl border border-primary-50 overflow-visible">
       <div className="px-5 py-3 border-b border-primary-50 bg-warm-50/50 flex items-center justify-between">
         <div>
-          <h3 className="text-xs font-bold text-dark-400 uppercase tracking-wider">Detail Jurnal (Pembayaran)</h3>
-          <p className="text-[11px] text-dark-300 mt-0.5">Opsional; kosongkan untuk memakai akun kas/bank default.</p>
+          <h3 className="text-xs font-bold text-dark-400 uppercase tracking-wider">Detail Pembayaran</h3>
+          <p className="text-[11px] text-dark-300 mt-0.5">Akun kas/bank penerima pembayaran; kosongkan untuk memakai default.</p>
         </div>
-        <div className={`text-xs font-bold ${rows.length === 0 || isBalanced ? 'text-emerald-600' : 'text-red-500'}`}>
-          {rows.length === 0 ? 'Default' : `Selisih ${formatRupiah(selisih)}`}
+        <div className={`text-xs font-bold ${journalBalanced || rows.length === 0 || isBalanced ? 'text-emerald-600' : 'text-red-500'}`}>
+          {journalBalanced ? 'Balance' : (rows.length === 0 ? 'Default' : `Kurang/lebih ${formatRupiah(Math.abs(selisih))}`)}
         </div>
       </div>
       <div className="p-5 space-y-3">
         {rows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-primary-100 bg-warm-50/30 px-4 py-5 text-center text-xs text-dark-300">
-            Belum ada detail jurnal pembayaran
+            Belum ada detail pembayaran
           </div>
         ) : (
           <div className="space-y-2">
@@ -93,10 +127,63 @@ export default function DetailJurnalPembayaran({
           </button>
           {rows.length > 0 && (
             <div className="text-right">
-              <div className="text-[10px] text-dark-300">Total Detail Jurnal</div>
+              <div className="text-[10px] text-dark-300">Total Pembayaran</div>
               <div className="text-sm font-bold font-mono text-dark-500">{formatRupiah(totalPembayaran)}</div>
             </div>
           )}
+        </div>
+        <div className="overflow-hidden rounded-xl border border-primary-50">
+          <div className="px-3 py-2 bg-warm-50/40 border-b border-primary-50 flex items-center justify-between">
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider">Preview Jurnal</span>
+            <span className={`text-[10px] font-bold ${journalBalanced ? 'text-emerald-600' : 'text-red-500'}`}>
+              DEBET {formatRupiah(totalDebet)} / KREDIT {formatRupiah(totalKredit)}
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-white border-b border-primary-50">
+                <th className="px-3 py-2 text-left font-semibold text-dark-300 w-24">Posisi</th>
+                <th className="px-3 py-2 text-left font-semibold text-dark-300">Akun</th>
+                <th className="px-3 py-2 text-right font-semibold text-dark-300 w-32">DEBET</th>
+                <th className="px-3 py-2 text-right font-semibold text-dark-300 w-32">KREDIT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journalLines.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-3 py-5 text-center text-dark-300">
+                    Pilih invoice untuk melihat jurnal
+                  </td>
+                </tr>
+              ) : (
+                journalLines.map((line, index) => (
+                  <tr key={`${line.posisi}-${line.account?.idakun || index}-${index}`} className="border-b border-primary-50/60 last:border-b-0">
+                    <td className={`px-3 py-2 font-bold ${line.posisi === 'DEBET' ? 'text-emerald-600' : 'text-primary-600'}`}>
+                      {line.posisi}
+                    </td>
+                    <td className="px-3 py-2 text-dark-500 font-medium">
+                      {accountLabel(line.account)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-dark-500">
+                      {line.posisi === 'DEBET' ? formatRupiah(line.amount) : '-'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-dark-500">
+                      {line.posisi === 'KREDIT' ? formatRupiah(line.amount) : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {journalLines.length > 0 && (
+              <tfoot>
+                <tr className="bg-warm-50/40 border-t border-primary-50">
+                  <td className="px-3 py-2 font-bold text-dark-400" colSpan={2}>Total</td>
+                  <td className="px-3 py-2 text-right font-mono font-bold text-dark-500">{formatRupiah(totalDebet)}</td>
+                  <td className="px-3 py-2 text-right font-mono font-bold text-dark-500">{formatRupiah(totalKredit)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </div>
       </div>
     </div>
