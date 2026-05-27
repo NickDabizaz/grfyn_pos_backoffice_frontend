@@ -73,7 +73,7 @@ export default function User({ isActive }) {
                 return (
                 <tr
                   key={user.iduser}
-                  onClick={() => setSelectedId(user.iduser)}
+                  onClick={() => setSelectedId(prev => prev === user.iduser ? null : user.iduser)}
                   onDoubleClick={() => canUbah && handleEdit(user)}
                   className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
                     isSelected ? 'bg-primary-100 text-dark-700 ring-1 ring-inset ring-primary-300' : 'hover:bg-warm-50/30'
