@@ -37,11 +37,15 @@ export default function Absensi() {
 
   const handleRefresh = () => { setRefreshing(true); loadData(); setTimeout(() => setRefreshing(false), 300); };
 
-  const handleHapus = async (id, nama, tgl) => {
-    if (!confirm(`Hapus absensi "${nama}" tanggal ${tgl}?`)) return;
+  const selectedRow = list.find(a => a.idabsensi === selectedId);
+
+  const handleHapus = async () => {
+    if (!selectedRow) return;
+    if (!confirm(`Hapus absensi "${selectedRow.namakaryawan}" tanggal ${String(selectedRow.tglabsensi || '').slice(0, 10)}?`)) return;
     try {
-      await api.delete(`/absensi/${id}`);
+      await api.delete(`/absensi/${selectedRow.idabsensi}`);
       toast.success('Absensi berhasil dihapus');
+      setSelectedId(null);
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menghapus absensi');
@@ -64,6 +68,12 @@ export default function Absensi() {
             <button onClick={handleTambah}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
               <Plus className="w-4 h-4" /> Absensi Baru
+            </button>
+          )}
+          {selectedRow && canUbah && (
+            <button onClick={handleHapus}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100">
+              <Trash2 className="w-4 h-4" /> Hapus
             </button>
           )}
           <button onClick={handleRefresh} disabled={refreshing}
@@ -105,12 +115,11 @@ export default function Absensi() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Karyawan</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Keterangan</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-16">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data absensi</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data absensi</td></tr>
                 )}
                 {paginatedItems.map((a) => (
                   <tr key={a.idabsensi}
@@ -124,13 +133,6 @@ export default function Absensi() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{a.keterangan || '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      {canUbah && (
-                        <button onClick={(e) => { e.stopPropagation(); handleHapus(a.idabsensi, a.namakaryawan, String(a.tglabsensi || '').slice(0, 10)); }} title="Hapus absensi" className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

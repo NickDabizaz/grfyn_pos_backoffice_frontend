@@ -22,7 +22,7 @@ export default function Payroll() {
   const canTambah = canAccess(access, 'tambah');
   const canUbah = canAccess(access, 'ubah');
 
-  const [list, setList]           = useState([]);
+  const [list, setList]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filterBulan, setFilterBulan] = useState('');
@@ -79,6 +79,8 @@ export default function Payroll() {
     }
   };
 
+  const selectedRow = list.find(p => p.idpayroll === selectedId);
+
   const handleDetail = (p) => {
     openOrFocusTab({
       label: `Detail ${p.namakaryawan} ${p.bulanpayroll || ''}`.trim(),
@@ -102,6 +104,30 @@ export default function Payroll() {
             <button onClick={handleTambah}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
               <Plus className="w-4 h-4" /> Generate Payroll
+            </button>
+          )}
+          {selectedRow && (
+            <button onClick={() => handleDetail(selectedRow)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary-100 text-sm font-semibold text-dark-400 hover:bg-warm-50">
+              <Eye className="w-4 h-4" /> Detail
+            </button>
+          )}
+          {selectedRow?.status === 'DRAFT' && canUbah && (
+            <button onClick={() => handlePosting(selectedRow.idpayroll)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100">
+              <CheckCircle className="w-4 h-4" /> Post
+            </button>
+          )}
+          {(selectedRow?.status === 'POSTED' || selectedRow?.status === 'POSTING') && canUbah && (
+            <button onClick={() => handleUnpost(selectedRow.idpayroll)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-sm font-semibold hover:bg-amber-100">
+              <RotateCcw className="w-4 h-4" /> Unpost
+            </button>
+          )}
+          {selectedRow?.status === 'DRAFT' && canUbah && (
+            <button onClick={() => handleCancel(selectedRow.idpayroll, selectedRow.namakaryawan)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100">
+              <Trash2 className="w-4 h-4" /> Hapus
             </button>
           )}
           <button onClick={handleRefresh} disabled={refreshing}
@@ -145,16 +171,16 @@ export default function Payroll() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Potongan</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-dark-300">Bersih</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data payroll</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data payroll</td></tr>
                 )}
                 {paginatedItems.map((p) => (
                   <tr key={p.idpayroll}
                     onClick={() => setSelectedId(p.idpayroll === selectedId ? null : p.idpayroll)}
+                    onDoubleClick={() => handleDetail(p)}
                     className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === p.idpayroll ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-4 py-3 text-dark-400 text-xs">{p.bulanpayroll || '-'}</td>
                     <td className="px-4 py-3 text-dark-500 font-medium">{p.namakaryawan || '-'}</td>
@@ -164,28 +190,6 @@ export default function Payroll() {
                     <td className="px-4 py-3 text-right font-semibold text-accent-600">{formatRupiah(p.gajinetbersih)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>{p.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {p.status === 'DRAFT' && canUbah && (
-                          <button onClick={(e) => { e.stopPropagation(); handlePosting(p.idpayroll); }} title="Post ke jurnal" className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">
-                            <CheckCircle className="w-3 h-3" /> Post
-                          </button>
-                        )}
-                        {p.status === 'DRAFT' && canUbah && (
-                          <button onClick={(e) => { e.stopPropagation(); handleCancel(p.idpayroll, p.namakaryawan); }} title="Hapus payroll" className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {(p.status === 'POSTED' || p.status === 'POSTING') && canUbah && (
-                          <button onClick={(e) => { e.stopPropagation(); handleUnpost(p.idpayroll); }} title="Unpost payroll" className="text-amber-500 hover:text-amber-700 p-1 rounded hover:bg-amber-50">
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button onClick={(e) => { e.stopPropagation(); handleDetail(p); }} title="Lihat detail" className="text-primary-500 hover:text-primary-700 p-1 rounded hover:bg-primary-50">
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
