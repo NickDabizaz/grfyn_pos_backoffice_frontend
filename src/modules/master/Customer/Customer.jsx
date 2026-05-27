@@ -42,6 +42,7 @@ export default function Customer({ isActive }) {
   const [search, setSearch]                     = useState('');
   const [refreshing, setRefreshing]             = useState(false);
   const [showTemplateInfo, setShowTemplateInfo] = useState(false);
+  const [selectedId, setSelectedId]             = useState(null);
   const openTab                                 = useTabStore((s) => s.openTab);
   const confirm                                 = useConfirm();
   const { access } = useMenuAccess('master.customer');
@@ -95,6 +96,11 @@ export default function Customer({ isActive }) {
             <Plus className="w-4 h-4" /> Tambah Customer
           </button>
           )}
+          {selectedId && canTambah && (
+          <button onClick={() => handleDelete(selectedId)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all active:scale-[0.98]">
+            <Trash2 className="w-4 h-4" /> Hapus
+          </button>
+          )}
           <button onClick={() => downloadFile('/impor/customer/export', 'customer-export.csv')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Download className="w-3.5 h-3.5" /> Export
           </button>
@@ -124,26 +130,20 @@ export default function Customer({ isActive }) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Nama</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Alamat</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">HP</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.map((c) => (
-                  <tr key={c.idcustomer} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
+                  <tr key={c.idcustomer}
+                    onClick={() => setSelectedId(prev => prev === c.idcustomer ? null : c.idcustomer)}
+                    onDoubleClick={() => canUbah && handleEdit(c)}
+                    className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                      selectedId === c.idcustomer ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'
+                    }`}>
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{c.kodecustomer}</td>
                     <td className="px-4 py-3 font-medium text-dark-500">{c.namacustomer}</td>
                     <td className="px-4 py-3 text-dark-400">{c.alamat || '-'}</td>
                     <td className="px-4 py-3 text-dark-400">{c.hp || '-'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {canUbah && (
-                        <button onClick={() => handleEdit(c)} className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-300 hover:text-primary-500"><Pencil className="w-3.5 h-3.5" /></button>
-                        )}
-                        {canTambah && (
-                        <button onClick={() => handleDelete(c.idcustomer)} className="p-1.5 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>

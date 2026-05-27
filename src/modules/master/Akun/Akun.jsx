@@ -15,6 +15,7 @@ export default function Akun({ isActive }) {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showSettingJurnal, setShowSettingJurnal] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const openTab = useTabStore((s) => s.openTab);
   const confirm = useConfirm();
   const { access } = useMenuAccess('master.akun');
@@ -40,6 +41,9 @@ export default function Akun({ isActive }) {
           {canTambah && (
           <button onClick={handleTambah} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold"><Plus className="w-4 h-4" /> Tambah Akun</button>
           )}
+          {selectedId && canTambah && (
+          <button onClick={() => handleDelete(selectedId)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all active:scale-[0.98]"><Trash2 className="w-4 h-4" /> Hapus</button>
+          )}
           {canUbah && (
           <button onClick={() => setShowSettingJurnal(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold"><Settings className="w-4 h-4" /> Setting Default Jurnal</button>
           )}
@@ -57,12 +61,17 @@ export default function Akun({ isActive }) {
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-primary-50 bg-warm-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Akun</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Nama Akun</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Saldo</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Status</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-20">Aksi</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Kode Akun</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Nama Akun</th><th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Saldo</th><th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.map((a) => (
-                  <tr key={a.idakun} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
+                  <tr key={a.idakun}
+                    onClick={() => setSelectedId(prev => prev === a.idakun ? null : a.idakun)}
+                    onDoubleClick={() => canUbah && handleEdit(a)}
+                    className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                      selectedId === a.idakun ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'
+                    }`}>
                     <td className="px-4 py-3 text-xs font-mono text-dark-300">{a.kodeakun}</td><td className="px-4 py-3 font-medium text-dark-500">{a.namaakun}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${a.saldo === 'KREDIT' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -70,14 +79,6 @@ export default function Akun({ isActive }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{a.status || '-'}</td>
-                    <td className="px-4 py-3"><div className="flex items-center justify-center gap-1">
-                      {canUbah && (
-                      <button onClick={() => handleEdit(a)} className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-300 hover:text-primary-500"><Pencil className="w-3.5 h-3.5" /></button>
-                      )}
-                      {canTambah && (
-                      <button onClick={() => handleDelete(a.idakun)} className="p-1.5 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                      )}
-                    </div></td>
                   </tr>
                 ))}
               </tbody>

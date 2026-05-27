@@ -133,6 +133,12 @@ export default function Barang({ isActive, tabState, updateTabState }) {
             <Plus className="w-4 h-4" /> Tambah Barang
           </button>
           )}
+          {selectedId && canTambah && (
+          <button onClick={() => handleDelete(selectedId)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all active:scale-[0.98]">
+            <Trash2 className="w-4 h-4" /> Hapus
+          </button>
+          )}
           <button onClick={() => downloadFile('/impor/barang/export', 'barang-export.csv')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary-100 text-xs font-semibold text-dark-400 hover:bg-warm-50 transition-colors">
             <Download className="w-3.5 h-3.5" /> Export
@@ -236,12 +242,6 @@ export default function Barang({ isActive, tabState, updateTabState }) {
                         <button onClick={() => loadHistory(b.idbarang)} className="p-1.5 rounded-lg hover:bg-accent-50 text-dark-300 hover:text-accent-500" title="Lihat history harga">
                           {showHistory === b.idbarang ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         </button>
-                        {canUbah && (
-                        <button onClick={() => handleEdit(b)} className="p-1.5 rounded-lg hover:bg-primary-50 text-dark-300 hover:text-primary-500" title="Edit barang"><Pencil className="w-3.5 h-3.5" /></button>
-                        )}
-                        {canTambah && (
-                        <button onClick={() => handleDelete(b.idbarang)} className="p-1.5 rounded-lg hover:bg-red-50 text-dark-300 hover:text-red-500" title="Hapus barang"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
                       </div>
                     </td>
                   </tr>

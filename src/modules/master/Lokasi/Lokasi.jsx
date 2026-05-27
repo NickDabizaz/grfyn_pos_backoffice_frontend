@@ -12,6 +12,7 @@ export default function Lokasi({ isActive }) {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const openTab = useTabStore((s) => s.openTab);
   const { access } = useMenuAccess('master.lokasi');
   const canTambah = canAccess(access, 'tambah');
@@ -62,23 +63,22 @@ export default function Lokasi({ isActive }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">HP</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Default</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Status</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedItems.filter(l => !search || l.kodelokasi?.toLowerCase().includes(search.toLowerCase()) || l.namalokasi?.toLowerCase().includes(search.toLowerCase())).map((lokasi) => (
-                <tr key={lokasi.idlokasi} className="border-b border-primary-50/50 hover:bg-warm-50/30 text-sm">
+                <tr key={lokasi.idlokasi}
+                  onClick={() => setSelectedId(prev => prev === lokasi.idlokasi ? null : lokasi.idlokasi)}
+                  onDoubleClick={() => canUbah && handleEdit(lokasi)}
+                  className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
+                    selectedId === lokasi.idlokasi ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'
+                  }`}>
                   <td className="px-4 py-3 font-mono text-xs text-dark-400">{lokasi.kodelokasi}</td>
                   <td className="px-4 py-3 font-medium text-dark-500">{lokasi.namalokasi}</td>
                   <td className="px-4 py-3 text-dark-400 max-w-xs truncate">{lokasi.alamat || '-'}</td>
                   <td className="px-4 py-3 text-dark-400">{lokasi.hp || '-'}</td>
                   <td className="px-4 py-3 text-center">{lokasi.isdefault ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary-50 text-primary-600">Default</span> : '-'}</td>
                   <td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${lokasi.status === 'AKTIF' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{lokasi.status}</span></td>
-                    <td className="px-4 py-3 text-center">
-                    {canUbah && (
-                    <button onClick={() => handleEdit(lokasi)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-500" title="Edit"><Edit2 className="w-4 h-4" /></button>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>

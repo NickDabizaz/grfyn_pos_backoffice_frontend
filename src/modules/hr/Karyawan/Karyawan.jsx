@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Search, RefreshCw, Pencil, Trash2 } from 'lucide-react';
@@ -7,14 +7,17 @@ import Pagination from '../../../components/ui/Pagination';
 import useTabStore from '../../../store/tabStore';
 import KaryawanForm from './KaryawanForm';
 import { useMenuAccess, canAccess } from '../../../hooks/useMenuAccess';
+import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
 export default function Karyawan() {
   const openOrFocusTab = useTabStore(s => s.openOrFocusTab);
+  const confirm = useConfirm();
+  const lastRowClickRef = useRef({ id: null, at: 0 });
   const { access } = useMenuAccess('sdm.karyawan');
   const canTambah = canAccess(access, 'tambah');
   const canUbah = canAccess(access, 'ubah');
 
-  const [list, setList]           = useState([]);
+  const [list, setList]             = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filterKode, setFilterKode] = useState('');
@@ -47,16 +50,33 @@ export default function Karyawan() {
     });
   };
 
-  const handleHapus = async (id, nama) => {
-    if (!confirm(`Hapus karyawan "${nama}"?`)) return;
+  const handleRowClick = (k) => {
+    const now = Date.now();
+    const last = lastRowClickRef.current;
+    if (last.id === k.idkaryawan && now - last.at < 400) {
+      lastRowClickRef.current = { id: null, at: 0 };
+      canUbah && handleEdit(k);
+      return;
+    }
+    lastRowClickRef.current = { id: k.idkaryawan, at: now };
+    setSelectedId(k.idkaryawan === selectedId ? null : k.idkaryawan);
+  };
+
+  const handleHapus = async () => {
+    if (!selectedRow) return;
+    const ok = await confirm({ message: `Hapus karyawan "${selectedRow.namakaryawan}"?` });
+    if (!ok) return;
     try {
-      await api.delete(`/karyawan/${id}`);
+      await api.delete(`/karyawan/${selectedRow.idkaryawan}`);
       toast.success('Karyawan berhasil dihapus');
+      setSelectedId(null);
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal hapus');
     }
   };
+
+  const selectedRow = list.find(k => k.idkaryawan === selectedId);
 
   return (
     <div className="flex flex-col h-full">
@@ -70,6 +90,18 @@ export default function Karyawan() {
             <button onClick={handleTambah}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
               <Plus className="w-4 h-4" /> Karyawan Baru
+            </button>
+          )}
+          {selectedRow && canUbah && (
+            <button onClick={() => handleEdit(selectedRow)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-sm font-semibold hover:bg-blue-100">
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
+          )}
+          {selectedRow && canTambah && (
+            <button onClick={handleHapus}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100">
+              <Trash2 className="w-4 h-4" /> Hapus
             </button>
           )}
           <button onClick={handleRefresh} disabled={refreshing}
@@ -100,36 +132,22 @@ export default function Karyawan() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Jabatan</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">Email</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-dark-300">No. HP</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-dark-300 w-24">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data karyawan</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-dark-300">Tidak ada data karyawan</td></tr>
                 )}
                 {paginatedItems.map((k) => (
                   <tr key={k.idkaryawan}
-                    onClick={() => setSelectedId(k.idkaryawan === selectedId ? null : k.idkaryawan)}
+                    onClick={() => handleRowClick(k)}
+                    onDoubleClick={() => canUbah && handleEdit(k)}
                     className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${selectedId === k.idkaryawan ? 'bg-primary-50 ring-1 ring-inset ring-primary-200' : 'hover:bg-warm-50/30'}`}>
                     <td className="px-4 py-3 text-xs font-mono text-dark-400">{k.kodekaryawan}</td>
                     <td className="px-4 py-3 text-dark-500 font-medium">{k.namakaryawan}</td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{k.jabatan || '-'}</td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{k.email || '-'}</td>
                     <td className="px-4 py-3 text-dark-400 text-xs">{k.nohp || '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {canUbah && (
-                          <button onClick={(e) => { e.stopPropagation(); handleEdit(k); }} className="text-primary-600 hover:text-primary-700 p-1 rounded hover:bg-primary-50">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {canTambah && (
-                          <button onClick={(e) => { e.stopPropagation(); handleHapus(k.idkaryawan, k.namakaryawan); }} className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
