@@ -15,6 +15,13 @@ function normalizeReportUrl(url) {
   return url;
 }
 
+function isAppShellHtml(text) {
+  return (
+    /<div\s+id=["']root["']\s*><\/div>/i.test(text) &&
+    /<script\b[^>]*type=["']module["'][^>]*src=["'][^"']*(\/src\/main\.jsx|\/assets\/index-[^"']+\.js)/i.test(text)
+  );
+}
+
 export default function LaporanResultPage({ url, token, label, data, type }) {
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(Boolean(url));
@@ -38,7 +45,7 @@ export default function LaporanResultPage({ url, token, label, data, type }) {
       if (!contentType.includes('text/html')) {
         throw new Error('Response laporan bukan HTML');
       }
-      if (text.includes('id="root"') || text.includes('GRFYN DEMO PUBLIC')) {
+      if (isAppShellHtml(text)) {
         throw new Error('Server mengembalikan halaman aplikasi, bukan hasil laporan');
       }
       setHtml(text);
