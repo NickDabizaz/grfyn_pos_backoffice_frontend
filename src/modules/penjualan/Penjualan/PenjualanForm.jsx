@@ -128,6 +128,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           bpk_jml:      item.bpk_jml ?? item.jml,
           bpk_harga:    item.bpk_harga ?? item.harga,
           ppn_mode:     item.ppn_mode || defaultPpnMode,
+          is_gratis:    Boolean(Number(item.is_gratis || 0)),
         }))
       : []
   );
@@ -143,6 +144,10 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
 
   const [loading, setLoading] = useState(false);
   const [langsungLunas, setLangsungLunas] = useState(editData?.statuslunas === 'LUNAS');
+  const [promoList, setPromoList] = useState([]);
+  const [selectedPromoId, setSelectedPromoId] = useState(editData?.idpromo ? String(editData.idpromo) : '');
+  const [promoPreview, setPromoPreview] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
   const ppnPercent = user?.ppn || 11;
 
   useEffect(() => {
@@ -197,6 +202,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
           bpk_jml:      parseFloat(item.jml || 0),
           bpk_harga:    parseFloat(item.harga || 0),
           ppn_mode:     defaultPpnMode,
+          is_gratis:    false,
         })));
       }
     } catch {
@@ -226,6 +232,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
       harga:        String(hargaJual || ''),
       diskon:       '0',
       ppn_mode:     defaultPpnMode,
+      is_gratis:    false,
     }]);
     setShowBarangModal(false);
   };
@@ -238,6 +245,95 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
     setItems(prev => prev.filter((_, i) => i !== idx));
   };
 
+  useEffect(() => {
+    api.get('/promo/aktif', { params: { berlaku_untuk: 'PENJUALAN', tgl: tgltrans } })
+      .then(({ data }) => setPromoList(Array.isArray(data) ? data : []))
+      .catch(() => setPromoList([]));
+  }, [tgltrans]);
+
+  useEffect(() => {
+    if (!selectedPromoId) {
+      setPromoPreview(null);
+      setItems(prev => prev.filter(item => !item.is_gratis));
+      return;
+    }
+    const regularItems = items.filter(item => !item.is_gratis);
+    if (regularItems.length === 0) {
+      setPromoPreview(null);
+      return;
+    }
+
+    let ignore = false;
+    const timer = setTimeout(async () => {
+      setPromoLoading(true);
+      try {
+        const { data } = await api.post('/promo/preview', {
+          idpromo: Number(selectedPromoId),
+          berlaku_untuk: 'PENJUALAN',
+          tgltrans,
+          items: regularItems.map(item => ({
+            idbarang: item.idbarang,
+            jml: Number(item.jml) || 0,
+            harga: parseFloatVal(item.harga),
+            diskon: parseFloatVal(item.diskon),
+            satuan: item.satuan && String(item.satuan).trim() ? String(item.satuan).trim() : 'PCS',
+            ppn_mode: item.ppn_mode,
+          })),
+        });
+        if (ignore) return;
+        setPromoPreview(data);
+        const gratis = Array.isArray(data.barang_gratis) ? data.barang_gratis : [];
+        setItems(prev => {
+          const withoutOldGratis = prev.filter(item => !item.is_gratis);
+          if (gratis.length === 0) return withoutOldGratis;
+          const next = [...withoutOldGratis];
+          gratis.forEach((g) => {
+            next.push({
+              idbarang: g.idbarang,
+              kodebarang: g.kodebarang,
+              namabarang: g.namabarang,
+              satuanbesar: g.satuanbesar || null,
+              satuansedang: g.satuansedang || null,
+              satuankecil: g.satuankecil || null,
+              konversi1: g.konversi1 || 0,
+              konversi2: g.konversi2 || 0,
+              stok: g.stok || 0,
+              satuan: g.satuan || 'PCS',
+              jml: String(g.jml || 1),
+              harga: '0',
+              diskon: '0',
+              ppn_mode: 'TIDAK_PAKAI',
+              is_gratis: true,
+            });
+          });
+          return next;
+        });
+        if (gratis.length > 0) {
+          toast.success(`Bonus promo: ${gratis.map(g => `${g.namabarang || g.kodebarang || 'Barang'} x${g.jml}`).join(', ')}`);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setPromoPreview(null);
+          toast.error(err.response?.data?.message || 'Gagal menghitung promo');
+        }
+      } finally {
+        if (!ignore) setPromoLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [
+    selectedPromoId,
+    tgltrans,
+    items
+      .filter(item => !item.is_gratis)
+      .map(item => `${item.idbarang}:${item.jml}:${item.harga}:${item.diskon}:${item.satuan}:${item.ppn_mode}`)
+      .join('|'),
+  ]);
+
   const computedItems = items.map(item => {
     const jml       = parseFloat(item.jml) || 0;
     const harga     = parseFloatVal(item.harga);
@@ -245,12 +341,27 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
     const base      = harga * jml;
     const diskonAmt = diskon ? (base * diskon) / 100 : 0;
     const ppnAmt    = item.ppn_mode === 'INCLUDE' ? ((base - diskonAmt) * ppnPercent) / 100 : 0;
+    if (item.is_gratis) return { ...item, jml, harga: 0, diskon: 0, diskonAmt: 0, ppnAmt: 0, subtotal: 0 };
     return { ...item, jml, harga, diskon, diskonAmt, ppnAmt, subtotal: base - diskonAmt + ppnAmt };
   });
 
   const totalPpn    = computedItems.reduce((s, i) => s + i.ppnAmt, 0);
   const totalDiskon = computedItems.reduce((s, i) => s + i.diskonAmt, 0);
   const grandTotal  = computedItems.reduce((s, i) => s + i.subtotal, 0);
+  const totalDiskonPromo = Number(promoPreview?.total_diskon || 0);
+  const grandTotalSetelahPromo = selectedPromoId && promoPreview
+    ? Math.max(0, Number(promoPreview.grandtotal_setelah || 0))
+    : grandTotal;
+  const promoOptions = selectedPromoId && !promoList.some((promo) => String(promo.idpromo) === String(selectedPromoId))
+    ? [
+        {
+          idpromo: selectedPromoId,
+          kodepromo: editData?.kodepromo || `PROMO-${selectedPromoId}`,
+          namapromo: editData?.namapromo || 'Promo tersimpan',
+        },
+        ...promoList,
+      ]
+    : promoList;
 
   const isLocked = isEdit && editData?.status !== 'DRAFT';
 
@@ -258,6 +369,42 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
     Number(i.bpk_jml ?? i.jml) !== Number(i.jml) ||
     Number(i.bpk_harga ?? i.harga) !== Number(i.harga)
   );
+
+  const previewPromoForSubmit = async (regularItems) => {
+    if (!selectedPromoId) return { preview: null, gratisItems: [] };
+    const { data } = await api.post('/promo/preview', {
+      idpromo: Number(selectedPromoId),
+      berlaku_untuk: 'PENJUALAN',
+      tgltrans,
+      items: regularItems.map(item => ({
+        idbarang: item.idbarang,
+        jml: Number(item.jml) || 0,
+        harga: parseFloatVal(item.harga),
+        diskon: parseFloatVal(item.diskon),
+        satuan: item.satuan && String(item.satuan).trim() ? String(item.satuan).trim() : 'PCS',
+        ppn_mode: item.ppn_mode,
+      })),
+    });
+    const gratisItems = (Array.isArray(data.barang_gratis) ? data.barang_gratis : []).map((g) => ({
+      idbarang: g.idbarang,
+      kodebarang: g.kodebarang,
+      namabarang: g.namabarang,
+      satuanbesar: g.satuanbesar || null,
+      satuansedang: g.satuansedang || null,
+      satuankecil: g.satuankecil || null,
+      konversi1: g.konversi1 || 0,
+      konversi2: g.konversi2 || 0,
+      stok: g.stok || 0,
+      satuan: g.satuan || 'PCS',
+      jml: String(g.jml || 1),
+      harga: '0',
+      diskon: '0',
+      ppn_mode: 'TIDAK_PAKAI',
+      is_gratis: true,
+    }));
+    setPromoPreview(data);
+    return { preview: data, gratisItems };
+  };
 
   const handleSubmit = async (approve = false) => {
     if (langsungLunas) approve = true;
@@ -283,13 +430,30 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
     }
     setLoading(true);
     try {
+      const regularItems = items.filter(item => !item.is_gratis);
+      const { preview: submitPromoPreview, gratisItems } = await previewPromoForSubmit(regularItems);
+      const submitItems = selectedPromoId ? [...regularItems, ...gratisItems] : items;
+      const submitComputedItems = submitItems.map(item => {
+        const jml       = parseFloat(item.jml) || 0;
+        const harga     = item.is_gratis ? 0 : parseFloatVal(item.harga);
+        const diskon    = item.is_gratis ? 0 : parseFloatVal(item.diskon);
+        const base      = harga * jml;
+        const diskonAmt = diskon ? (base * diskon) / 100 : 0;
+        const ppnAmt    = !item.is_gratis && item.ppn_mode === 'INCLUDE' ? ((base - diskonAmt) * ppnPercent) / 100 : 0;
+        return { ...item, jml, harga, diskon, diskonAmt, ppnAmt, subtotal: item.is_gratis ? 0 : base - diskonAmt + ppnAmt };
+      });
+      if (gratisItems.length > 0) setItems(submitItems);
+      const submitGrandTotal = submitPromoPreview
+        ? Math.max(0, Number(submitPromoPreview.grandtotal_setelah || 0))
+        : submitComputedItems.reduce((s, i) => s + i.subtotal, 0);
+
       const payload = {
         kodejual:         autoGenerate ? null : kodejual.trim(),
         tgltrans,
         idcustomer:       customer.idcustomer,
         idlokasi:         lokasi.idlokasi,
-        grandtotal:       grandTotal,
-        bayar:            langsungLunas ? grandTotal : 0,
+        grandtotal:       submitGrandTotal,
+        bayar:            langsungLunas ? submitGrandTotal : 0,
         langsung_lunas:   langsungLunas,
         is_lunaslangsung: langsungLunas,
         idbpk:            idbpk || null,
@@ -297,13 +461,15 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
         jalurpenjualan:   idbpk ? 'PESANAN' : 'LANGSUNG',
         approve,
         catatan:          catatan || null,
-        items: computedItems.map(i => ({
+        idpromo:          selectedPromoId ? Number(selectedPromoId) : null,
+        items: submitComputedItems.map(i => ({
           idbarang: i.idbarang,
           jml:      i.jml,
-          harga:    i.harga,
-          diskon:   i.diskon || 0,
+          harga:    i.is_gratis ? 0 : i.harga,
+          diskon:   i.is_gratis ? 0 : (i.diskon || 0),
           satuan:   i.satuan && String(i.satuan).trim() ? String(i.satuan).trim() : 'PCS',
           ppn_mode: i.ppn_mode,
+          is_gratis: Boolean(i.is_gratis),
         })),
       };
 
@@ -520,12 +686,18 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                     const satuanOpts = getSatuanOptions(item);
                     const rawItem = items[idx];
                     return (
-                      <tr key={item.idbarang} className="border-b border-primary-50/50 hover:bg-warm-50/20 transition-colors">
+                      <tr key={`${item.idbarang}-${idx}-${item.is_gratis ? 'gratis' : 'reguler'}`} className="border-b border-primary-50/50 hover:bg-warm-50/20 transition-colors">
                         <td className="px-3 py-2.5 text-center text-xs text-dark-300">{idx + 1}</td>
                         <td className="px-3 py-2.5 text-xs font-mono text-dark-300">{item.kodebarang}</td>
-                        <td className="px-3 py-2.5 font-medium text-dark-500">{item.namabarang}</td>
+                        <td className="px-3 py-2.5 font-medium text-dark-500">
+                          <div className="flex items-center gap-2">
+                            <span>{item.namabarang}</span>
+                            {item.is_gratis && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">GRATIS</span>}
+                          </div>
+                        </td>
                         <td className="px-3 py-2.5">
                           <select value={item.satuan} onChange={e => updateItem(idx, 'satuan', e.target.value)}
+                            disabled={item.is_gratis}
                             className="w-full px-2 py-1.5 rounded-lg border border-primary-100 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary-500/20">
                             {satuanOpts.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
@@ -536,6 +708,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                         <td className="px-3 py-2.5">
                           <input type="text" value={rawItem.jml}
                             onChange={e => updateItem(idx, 'jml', e.target.value)}
+                            disabled={item.is_gratis}
                             placeholder="0"
                             className={`w-full px-2 py-1.5 rounded-lg border text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary-500/20 ${
                               !isJmlValid(rawItem.jml) ? 'border-red-300 bg-red-50 text-red-700' : 'border-primary-100'
@@ -544,6 +717,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                         <td className="px-3 py-2.5">
                           <input type="text" value={rawItem.harga}
                             onChange={e => updateItem(idx, 'harga', e.target.value)}
+                            disabled={item.is_gratis}
                             placeholder="0"
                             className={`w-full px-2 py-1.5 rounded-lg border text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20 ${
                               rawItem.harga && !isFloatValid(rawItem.harga) ? 'border-red-300 bg-red-50 text-red-700' : 'border-primary-100'
@@ -552,6 +726,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                         <td className="px-3 py-2.5">
                           <input type="text" value={rawItem.diskon}
                             onChange={e => updateItem(idx, 'diskon', e.target.value)}
+                            disabled={item.is_gratis}
                             placeholder="0"
                             className={`w-full px-2 py-1.5 rounded-lg border text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500/20 ${
                               rawItem.diskon && !isFloatValid(rawItem.diskon) ? 'border-red-300 bg-red-50 text-red-700' : 'border-primary-100'
@@ -561,7 +736,7 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                           {formatRupiah(item.subtotal)}
                         </td>
                         <td className="px-3 py-2.5">
-                          <PpnDropdown value={item.ppn_mode} onChange={v => updateItem(idx, 'ppn_mode', v)} />
+                          <PpnDropdown value={item.ppn_mode} onChange={v => updateItem(idx, 'ppn_mode', v)} disabled={item.is_gratis} />
                         </td>
                         <td className="px-3 py-2.5">
                           <button onClick={() => removeItem(idx)}
@@ -575,6 +750,47 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-primary-50 p-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
+              <div>
+                <label className="block text-xs font-semibold text-dark-400 mb-1.5">Pilih Promo</label>
+                <select
+                  value={selectedPromoId}
+                  onChange={(e) => setSelectedPromoId(e.target.value)}
+                  disabled={isLocked || items.filter(item => !item.is_gratis).length === 0}
+                  className="w-full px-3 py-2 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-warm-50 disabled:text-dark-300"
+                >
+                  <option value="">Tanpa promo</option>
+                  {promoOptions.map((promo) => (
+                    <option key={promo.idpromo} value={promo.idpromo}>
+                      {promo.kodepromo} - {promo.namapromo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="rounded-xl border border-primary-50 bg-warm-50/40 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase text-dark-300">Total Sebelum Promo</p>
+                <p className="text-sm font-bold text-dark-500 font-mono">{formatRupiah(promoPreview?.grandtotal_sebelum ?? grandTotal)}</p>
+              </div>
+              <div className="rounded-xl border border-primary-50 bg-warm-50/40 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase text-dark-300">{promoLoading ? 'Menghitung Promo' : 'Diskon Promo'}</p>
+                <p className="text-sm font-bold text-red-500 font-mono">{totalDiskonPromo ? `-${formatRupiah(totalDiskonPromo)}` : '0'}</p>
+              </div>
+            </div>
+            {promoPreview && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-dark-400">
+                <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+                  Total Setelah Promo: {formatRupiah(grandTotalSetelahPromo)}
+                </span>
+                {promoPreview.barang_gratis?.length > 0 && (
+                  <span className="rounded-lg bg-primary-50 px-2.5 py-1 font-semibold text-primary-600">
+                    Bonus: {promoPreview.barang_gratis.map((g) => `${g.namabarang || g.kodebarang || 'Barang'} x${g.jml}`).join(', ')}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ────── SECTION 3: FOOTER ────── */}
@@ -594,9 +810,15 @@ export default function PenjualanForm({ onSuccess, tabId, editData }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-6">
+                  <span className="text-xs text-dark-300 w-28 text-right">Diskon Promo:</span>
+                  <span className="text-sm font-semibold text-red-500 font-mono w-40 text-right">
+                    {totalDiskonPromo === 0 ? '0' : `-${formatRupiah(totalDiskonPromo)}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-6">
                   <span className="text-xs font-bold text-dark-500 w-28 text-right">Grand Total:</span>
                   <span className="text-xl font-bold text-accent-600 font-mono w-40 text-right">
-                    {formatRupiah(grandTotal)}
+                    {formatRupiah(grandTotalSetelahPromo)}
                   </span>
                 </div>
               </div>

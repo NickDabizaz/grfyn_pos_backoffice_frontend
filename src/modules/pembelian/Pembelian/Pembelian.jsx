@@ -90,6 +90,7 @@ export default function Pembelian({ isActive }) {
   const refreshToken = useTabStore(s => s.refreshTokens?.['pembelian.transaksi'] || s.refreshTokens?.['pembelian']);
   const confirm = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
+  const editRequestRef = useRef(null);
   const { access } = useMenuAccess('pembelian.transaksi');
 
   const [beli, setBeli]             = useState([]);
@@ -134,6 +135,8 @@ export default function Pembelian({ isActive }) {
 
   const handleEdit = async (b) => {
     if (!canAccess(access, 'ubah')) return toast.error('Tidak memiliki akses ubah');
+    if (editRequestRef.current === b.idbeli) return;
+    editRequestRef.current = b.idbeli;
     try {
       const { data } = await api.get(`/beli/${b.idbeli}`);
       openOrFocusTab({
@@ -144,8 +147,12 @@ export default function Pembelian({ isActive }) {
         type: 'form_edit',
         kodemenu: `pembelian-edit-${b.idbeli}`,
       });
-    } catch {
-      toast.error('Gagal memuat data pembelian');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal memuat data pembelian', {
+        id: `beli-detail-${b.idbeli}`,
+      });
+    } finally {
+      editRequestRef.current = null;
     }
   };
 
@@ -400,7 +407,6 @@ export default function Pembelian({ isActive }) {
                   return (
                     <tr key={b.idbeli}
                       onClick={() => handleRowClick(b)}
-                      onDoubleClick={() => handleEdit(b)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
                         b.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'

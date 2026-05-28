@@ -59,7 +59,21 @@ const useTabStore = create(
         openOrFocusTab: (config) => {
           const existing = get().tabs.find(t => t.kodemenu && t.kodemenu === config.kodemenu);
           if (existing) {
-            get().setActiveTab(existing.id);
+            set(state => ({
+              tabs: state.tabs.map(t => t.id === existing.id
+                ? {
+                    ...t,
+                    label    : config.label || t.label,
+                    icon     : config.icon || t.icon,
+                    component: config.component || t.component,
+                    props    : config.props || t.props,
+                    type     : config.type || t.type,
+                    closable : config.closable !== undefined ? config.closable : t.closable,
+                  }
+                : t
+              ),
+              activeTabId: existing.id,
+            }), false, 'tab/openOrFocusTabUpdate');
             return existing.id;
           }
           return get().openTab(config);

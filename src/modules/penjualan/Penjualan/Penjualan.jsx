@@ -88,6 +88,7 @@ export default function Penjualan({ isActive }) {
   const refreshToken   = useTabStore(s => s.refreshTokens?.['penjualan.transaksi'] || s.refreshTokens?.['penjualan']);
   const confirm        = useConfirm();
   const lastRowClickRef = useRef({ id: null, at: 0 });
+  const editRequestRef = useRef(null);
   const { access } = useMenuAccess('penjualan.transaksi');
 
   const [jual, setJual]             = useState([]);
@@ -131,6 +132,8 @@ export default function Penjualan({ isActive }) {
 
   const handleEdit = async (j) => {
     if (!canAccess(access, 'ubah')) return toast.error('Tidak memiliki akses ubah');
+    if (editRequestRef.current === j.idjual) return;
+    editRequestRef.current = j.idjual;
     try {
       const { data } = await api.get(`/jual/${j.idjual}`);
       openOrFocusTab({
@@ -141,8 +144,12 @@ export default function Penjualan({ isActive }) {
         type: 'form_edit',
         kodemenu: `penjualan-edit-${j.idjual}`,
       });
-    } catch {
-      toast.error('Gagal memuat data penjualan');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal memuat data penjualan', {
+        id: `jual-detail-${j.idjual}`,
+      });
+    } finally {
+      editRequestRef.current = null;
     }
   };
 
@@ -389,7 +396,6 @@ export default function Penjualan({ isActive }) {
                   return (
                     <tr key={j.idjual}
                       onClick={() => handleRowClick(j)}
-                      onDoubleClick={() => handleEdit(j)}
                       className={`border-b border-primary-50/50 text-sm cursor-pointer select-none transition-colors ${
                         j.status === 'CANCELLED'
                           ? 'bg-red-50/30 opacity-60'

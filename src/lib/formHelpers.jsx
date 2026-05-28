@@ -608,7 +608,7 @@ export function BrowseJualModal({ onSelect, onClose }) {
 
 // ─────────────── PPN Dropdown ───────────────
 
-export function PpnDropdown({ value, onChange }) {
+export function PpnDropdown({ value, onChange, disabled = false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const btnRef = useRef(null);
@@ -638,12 +638,12 @@ export function PpnDropdown({ value, onChange }) {
 
   return (
     <div ref={ref}>
-      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
+      <button ref={btnRef} type="button" disabled={disabled} onClick={() => !disabled && setOpen(o => !o)}
         className={`inline-flex items-center justify-between gap-1.5 w-full px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
           isInclude
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
             : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-        }`}>
+        } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
         <span className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${isInclude ? 'bg-emerald-500' : 'bg-red-500'}`} />
           {isInclude ? 'INCLUDE' : 'TIDAK'}
