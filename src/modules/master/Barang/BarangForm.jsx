@@ -70,6 +70,9 @@ export default function BarangForm({ mode, idbarang, data, onSuccess, tabId, isA
   const [pakaiBahanBaku, setPakaiBahanBaku] = useState(true);
   const closeTab                        = useTabStore((s) => s.closeTab);
   const closeCurrentTab                 = () => closeTab(tabId ?? useTabStore.getState().activeTabId);
+  const unitFieldsLocked                = mode === 'edit' && Boolean(Number(data?.has_transaksi || 0));
+  const editableInputClass              = 'w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20';
+  const lockedInputClass                = `${editableInputClass} disabled:bg-warm-50 disabled:text-dark-300 disabled:cursor-not-allowed`;
 
   useEffect(() => {
     api.get('/setting/toko')
@@ -187,35 +190,40 @@ export default function BarangForm({ mode, idbarang, data, onSuccess, tabId, isA
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">Satuan Besar</label>
-              <input value={form.satuanbesar} onChange={(e) => setForm({ ...form, satuanbesar: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+              <input value={form.satuanbesar} disabled={unitFieldsLocked} onChange={(e) => setForm({ ...form, satuanbesar: e.target.value.toUpperCase() })}
+                className={lockedInputClass} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">Satuan Sedang</label>
-              <input value={form.satuansedang} onChange={(e) => setForm({ ...form, satuansedang: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+              <input value={form.satuansedang} disabled={unitFieldsLocked} onChange={(e) => setForm({ ...form, satuansedang: e.target.value.toUpperCase() })}
+                className={lockedInputClass} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">Satuan Kecil</label>
-              <input value={form.satuankecil} onChange={(e) => setForm({ ...form, satuankecil: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+              <input value={form.satuankecil} disabled={unitFieldsLocked} onChange={(e) => setForm({ ...form, satuankecil: e.target.value.toUpperCase() })}
+                className={lockedInputClass} />
             </div>
           </div>
+          {unitFieldsLocked && (
+            <p className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              Satuan tidak dapat diubah karena barang sudah memiliki transaksi.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">
                 Konversi Besar <span className="text-[10px] text-dark-200">(Satuan Besar &#x2192; Satuan Sedang)</span>
               </label>
-              <input type="number" value={form.konversi1} onChange={(e) => setForm({ ...form, konversi1: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="36" />
+              <input type="number" value={form.konversi1} disabled={unitFieldsLocked} onChange={(e) => setForm({ ...form, konversi1: e.target.value })}
+                className={lockedInputClass} placeholder="36" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-dark-400 mb-1">
                 Konversi Kecil <span className="text-[10px] text-dark-200">(Satuan Sedang &#x2192; Satuan Kecil)</span>
               </label>
-              <input type="number" value={form.konversi2} onChange={(e) => setForm({ ...form, konversi2: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="1000" />
+              <input type="number" value={form.konversi2} disabled={unitFieldsLocked} onChange={(e) => setForm({ ...form, konversi2: e.target.value })}
+                className={lockedInputClass} placeholder="1000" />
             </div>
           </div>
 

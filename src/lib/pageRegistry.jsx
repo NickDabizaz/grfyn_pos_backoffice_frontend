@@ -37,6 +37,7 @@ const Subscription       = lazy(() => import('../modules/subscription/Subscripti
 const Karyawan           = lazy(() => import('../modules/hr/Karyawan/Karyawan'));
 const Absensi            = lazy(() => import('../modules/hr/Absensi/Absensi'));
 const Payroll            = lazy(() => import('../modules/hr/Payroll/Payroll'));
+const SettingAbsensi     = lazy(() => import('../modules/hr/SettingAbsensi/SettingAbsensi'));
 const LaporanPage        = lazy(() => import('../modules/laporan/LaporanPage'));
 const LaporanStokSekarang  = lazy(() => import('../modules/laporan/LaporanStokSekarang'));
 const LaporanStokKartuStok = lazy(() => import('../modules/laporan/LaporanStokKartuStok'));
@@ -70,6 +71,7 @@ const registry = {
   'master.customer' : { component: Customer, label: 'Customer' },
   'master.supplier' : { component: Supplier, label: 'Supplier' },
   'master.lokasi'   : { component: Lokasi,   label: 'Lokasi',   icon: MapPin },
+  'master.karyawan' : { component: Karyawan, label: 'Karyawan' },
   'master.akun'     : { component: Akun,     label: 'Akun' },
   'master.promo'    : { component: Promo,    label: 'Promo',    icon: Tag },
 
@@ -97,9 +99,9 @@ const registry = {
   'keuangan.pelunasanpiutang': { component: PelunasanPiutang,label: 'Pelunasan Piutang',icon: Wallet },
 
   // HR
-  'sdm.karyawan': { component: Karyawan, label: 'Data Karyawan' },
-  'sdm.absensi' : { component: Absensi,  label: 'Absensi' },
-  'sdm.payroll' : { component: Payroll,  label: 'Gaji' },
+  'sdm.absensi'       : { component: Absensi,        label: 'Absensi' },
+  'sdm.gaji'          : { component: Payroll,        label: 'Gaji' },
+  'sdm.settingabsensi': { component: SettingAbsensi, label: 'Setting Absensi' },
 
   // Laporan Pembelian leaves
   'laporan.pembelian.po'       : { component: LaporanPage, label: 'Laporan Purchase Order',           icon: FileBarChart },
@@ -123,6 +125,10 @@ const registry = {
   'laporan.akuntansi.jurnal'   : { component: LaporanAkuntansi, label: 'Jurnal Transaksi', icon: FileBarChart, props: { type: 'jurnal' } },
   'laporan.akuntansi.bukubesar': { component: LaporanAkuntansi, label: 'Buku Besar',       icon: FileBarChart, props: { type: 'buku-besar' } },
   'laporan.akuntansi.neraca'   : { component: LaporanAkuntansi, label: 'Neraca',           icon: FileBarChart, props: { type: 'neraca' } },
+
+  // Laporan HR
+  'laporan.hr.absen': { component: LaporanPage, label: 'Laporan Absen',       icon: FileBarChart },
+  'laporan.hr.gaji' : { component: LaporanPage, label: 'Laporan Penggajian',  icon: FileBarChart },
 
   // New features
   'penjualan.diskon'  : { component: Diskon,       label: 'Diskon Lama',          icon: Tag },

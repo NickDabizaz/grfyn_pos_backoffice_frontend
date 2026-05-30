@@ -76,6 +76,21 @@ const laporanConfig = {
       { label: 'Laporan Retur Penjualan', endpoint: 'retur-jual' },
     ],
   },
+
+  'laporan.hr.absen': {
+    title     : 'Laporan Absen',
+    filterSide: null,
+    jenis     : [
+      { label: 'Laporan Absen', endpoint: 'absen' },
+    ],
+  },
+  'laporan.hr.gaji': {
+    title     : 'Laporan Penggajian',
+    filterSide: null,
+    jenis     : [
+      { label: 'Laporan Penggajian', endpoint: 'gaji' },
+    ],
+  },
 };
 
 export default laporanConfig;
