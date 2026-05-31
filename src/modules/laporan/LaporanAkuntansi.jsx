@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { firstOfMonth, formatRupiah, today } from '../../lib/utils';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
+import DatePicker from '../../components/ui/DatePicker';
 
 const MONTHS = [
   ['1', 'Januari'], ['2', 'Februari'], ['3', 'Maret'], ['4', 'April'],
@@ -104,11 +105,11 @@ export default function LaporanAkuntansi({ type = 'jurnal' }) {
               <>
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal Awal</label>
-                  <input type="date" value={tglwal} onChange={(e) => setTglwal(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-primary-100 text-xs" />
+                  <DatePicker value={tglwal} onChange={setTglwal} className="w-full px-3 py-2 rounded-lg border border-primary-100 text-xs" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal Akhir</label>
-                  <input type="date" value={tglakhir} onChange={(e) => setTglakhir(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-primary-100 text-xs" />
+                  <DatePicker value={tglakhir} onChange={setTglakhir} className="w-full px-3 py-2 rounded-lg border border-primary-100 text-xs" />
                 </div>
               </>
             )}

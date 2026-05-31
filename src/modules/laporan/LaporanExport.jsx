@@ -3,6 +3,7 @@ import { Download, FileText, FileSpreadsheet } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { today, firstOfMonth } from '../../lib/utils';
+import DatePicker from '../../components/ui/DatePicker';
 
 const EXPORTS = [
   {
@@ -93,11 +94,11 @@ export default function LaporanExport() {
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className={lbl}>Tanggal Awal</label>
-                <input type="date" value={tglawal} onChange={(e) => setTglawal(e.target.value)} className={inp} />
+                <DatePicker value={tglawal} onChange={setTglawal} className={inp} />
               </div>
               <div>
                 <label className={lbl}>Tanggal Akhir</label>
-                <input type="date" value={tglakhir} onChange={(e) => setTglakhir(e.target.value)} className={inp} />
+                <DatePicker value={tglakhir} onChange={setTglakhir} className={inp} />
               </div>
               <div>
                 <label className={lbl}>Pencarian <span className="font-normal">(transaksi)</span></label>

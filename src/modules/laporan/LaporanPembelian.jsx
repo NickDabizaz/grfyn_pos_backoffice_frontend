@@ -6,7 +6,9 @@ import { useMenuAccess, canAccess } from '../../hooks/useMenuAccess';
 import { Eye, FileBarChart, X } from 'lucide-react';
 import api from '../../api/axios';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
+import DatePicker from '../../components/ui/DatePicker';
 import LaporanResultPage from './LaporanResultPage';
+import ReportExportButton from './ReportExportButton';
 
 const reportUrl = (type, token, params = {}) => {
   const qs = new URLSearchParams({ format: 'html', token, ...params }).toString();
@@ -73,16 +75,21 @@ export default function LaporanPembelian() {
   const fetchSuppliers = (search) =>
     api.get('/supplier', search ? { params: { search } } : {}).then((r) => r.data || []);
 
-  const handleGenerate = () => {
+  const getReportTarget = () => {
     const params = { tglwal, tglakhir };
     if (lokasi?.idlokasi) params.idlokasi = lokasi.idlokasi;
     if (filterSuppliers.length) params.idsupplier = joinIds(filterSuppliers, 'idsupplier');
     const label = reports.find((r) => r.key === tab)?.label || 'Laporan Pembelian';
     
+    return { label, url: reportUrl(tab, token, params) };
+  };
+
+  const handleGenerate = () => {
+    const { label, url } = getReportTarget();
     openTab({
       label,
       component: LaporanResultPage,
-      props: { url: reportUrl(tab, token, params), label },
+      props: { url, label },
       type: 'report',
       kodemenu: null,
     });
@@ -115,19 +122,17 @@ export default function LaporanPembelian() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Dari</label>
-            <input
-              type="date"
+            <DatePicker
               value={tglwal}
-              onChange={(e) => setTglwal(e.target.value)}
+              onChange={setTglwal}
               className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
             />
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-dark-300 mb-1">Sampai</label>
-            <input
-              type="date"
+            <DatePicker
               value={tglakhir}
-              onChange={(e) => setTglakhir(e.target.value)}
+              onChange={setTglakhir}
               className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
             />
           </div>
@@ -142,12 +147,12 @@ export default function LaporanPembelian() {
           />
         </div>
 
-        <button
-          onClick={handleGenerate}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all h-fit"
-        >
-          <Eye className="w-4 h-4" /> Cetak Laporan
-        </button>
+        <div className="flex gap-2">
+          <ReportExportButton url={getReportTarget().url} token={token} />
+          <button onClick={handleGenerate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-semibold transition-all h-fit">
+            <Eye className="w-4 h-4" /> Cetak Laporan
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-primary-50 p-12 text-center animate-in">

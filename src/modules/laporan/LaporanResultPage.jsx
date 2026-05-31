@@ -26,6 +26,7 @@ export default function LaporanResultPage({ url, token, label, data, type }) {
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(Boolean(url));
   const [error, setError] = useState('');
+  const [previewLimit, setPreviewLimit] = useState('');
 
   const loadReport = async () => {
     if (!url) return;
@@ -49,6 +50,7 @@ export default function LaporanResultPage({ url, token, label, data, type }) {
         throw new Error('Server mengembalikan halaman aplikasi, bukan hasil laporan');
       }
       setHtml(text);
+      setPreviewLimit(response.headers.get('x-report-preview-limit') || '');
     } catch (err) {
       setHtml('');
       setError(err.message || 'Gagal memuat laporan');
@@ -183,8 +185,15 @@ export default function LaporanResultPage({ url, token, label, data, type }) {
   if (url) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-primary-100 bg-white shrink-0">
-          <h3 className="text-sm font-bold text-dark-500">{label || 'Hasil Laporan'}</h3>
+        <div className="flex items-center justify-between gap-4 px-4 py-2 border-b border-primary-100 bg-white shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-dark-500">{label || 'Hasil Laporan'}</h3>
+            {previewLimit && (
+              <p className="mt-0.5 text-[10px] text-dark-300">
+                Preview hanya menampilkan maksimal {Number(previewLimit).toLocaleString('id-ID')} transaksi karena data terlalu besar. Gunakan Export Excel pada halaman filter untuk melihat seluruh data.
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {error && (
               <button

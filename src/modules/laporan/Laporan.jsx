@@ -3,31 +3,16 @@ import api from '../../api/axios';
 import { useAuthStore } from '../../store/authStore';
 import useTabStore from '../../store/tabStore';
 import { formatRupiah, today, firstOfMonth } from '../../lib/utils';
-import toast from 'react-hot-toast';
-import { Eye, FileDown, Printer, FileBarChart, Package, Users, Building2, ShoppingBag, X } from 'lucide-react';
+import { Eye, Printer, FileBarChart, Package, Users, Building2, ShoppingBag, X } from 'lucide-react';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
-import LaporanResultPage from './laporan/LaporanResultPage';
+import DatePicker from '../../components/ui/DatePicker';
+import LaporanResultPage from './LaporanResultPage';
+import ReportExportButton from './ReportExportButton';
 
 const reportUrl = (type, token, params = {}) => {
   const qs = new URLSearchParams({ format: 'html', token, ...params }).toString();
   return `/api/laporan/${type}?${qs}`;
 };
-
-function exportExcel(url, token, params, filename) {
-  const fullParams = { token, ...params };
-  const qs = new URLSearchParams(fullParams).toString();
-  fetch(`/api/laporan/${url}?${qs}`)
-    .then((r) => r.text())
-    .then((html) => {
-      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    })
-    .catch(() => toast.error('Gagal export'));
-}
 
 function joinIds(arr, field) {
   if (!arr || !arr.length) return '';
@@ -174,16 +159,6 @@ export default function Laporan() {
         ? penjualanTypes.find((p) => p.key === subType)?.label || 'Laporan'
         : pembelianTypes.find((p) => p.key === subType)?.label || 'Laporan';
     openInNewTab(label, reportUrl(r.url, token, r.params));
-  };
-
-  const handleExcel = () => {
-    const r = getReportUrl();
-    if (!r) return;
-    const label =
-      category === 'penjualan'
-        ? penjualanTypes.find((p) => p.key === subType)?.label || 'laporan'
-        : pembelianTypes.find((p) => p.key === subType)?.label || 'laporan';
-    exportExcel(r.url, token, getReportParams(), `${label.replace(/\s+/g, '_')}.xls`);
   };
 
   const handlePrintMaster = () => {
@@ -394,19 +369,17 @@ export default function Laporan() {
                   {/* Tanggal */}
                   <div>
                     <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal Awal</label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={tglwal}
-                      onChange={(e) => setTglwal(e.target.value)}
+                      onChange={setTglwal}
                       className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-dark-300 mb-1">Tanggal Akhir</label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={tglakhir}
-                      onChange={(e) => setTglakhir(e.target.value)}
+                      onChange={setTglakhir}
                       className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
                     />
                   </div>
@@ -464,16 +437,17 @@ export default function Laporan() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleTampilkan}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-semibold transition-all"
                   >
                     <Eye className="w-4 h-4" /> Cetak Laporan
                   </button>
-                  <button
-                    onClick={handleExcel}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-all"
-                  >
-                    <FileDown className="w-4 h-4" /> Cetak Excel
-                  </button>
+                  <ReportExportButton
+                    url={(() => {
+                      const report = getReportUrl();
+                      return report ? reportUrl(report.url, token, report.params) : '';
+                    })()}
+                    token={token}
+                  />
                 </div>
               </div>
             </>

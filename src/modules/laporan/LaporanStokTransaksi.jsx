@@ -5,7 +5,9 @@ import useTabStore from '../../store/tabStore';
 import { Eye, FileBarChart, X } from 'lucide-react';
 import api from '../../api/axios';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
+import DatePicker from '../../components/ui/DatePicker';
 import LaporanResultPage from './LaporanResultPage';
+import ReportExportButton from './ReportExportButton';
 
 const config = {
   opname: { title: 'Laporan Opname Stok', endpoint: 'stock-opname', showTujuan: false },
@@ -48,16 +50,20 @@ export default function LaporanStokTransaksi({ jenis = 'opname' }) {
   const fetchLokasi = () => api.get('/lokasi').then(r => r.data || []);
   const fetchBarang = (search) => api.get('/barang/browse-barang', search ? { params: { search } } : {}).then(r => r.data || []);
 
-  const handleGenerate = () => {
+  const getReportUrl = () => {
     const params = { tglwal, tglakhir };
     if (lokasi.length) params.idlokasi = joinIds(lokasi, 'idlokasi');
     if (cfg.showTujuan && lokasiTujuan.length) params.idlokasitujuan = joinIds(lokasiTujuan, 'idlokasi');
     if (barang.length) params.idbarang = joinIds(barang, 'idbarang');
     const qs = new URLSearchParams({ format: 'html', token, ...params }).toString();
+    return `/api/laporan/${cfg.endpoint}?${qs}`;
+  };
+
+  const handleGenerate = () => {
     openTab({
       label: cfg.title,
       component: LaporanResultPage,
-      props: { url: `/api/laporan/${cfg.endpoint}?${qs}`, label: cfg.title },
+      props: { url: getReportUrl(), label: cfg.title },
       type: 'report',
       kodemenu: null,
       icon: FileBarChart,
@@ -78,11 +84,11 @@ export default function LaporanStokTransaksi({ jenis = 'opname' }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Dari</label>
-                  <input type="date" value={tglwal} onChange={e => setTglwal(e.target.value)} className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
+                  <DatePicker value={tglwal} onChange={setTglwal} className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Sampai</label>
-                  <input type="date" value={tglakhir} onChange={e => setTglakhir(e.target.value)} className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
+                  <DatePicker value={tglakhir} onChange={setTglakhir} className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20" />
                 </div>
               </div>
 
@@ -92,8 +98,9 @@ export default function LaporanStokTransaksi({ jenis = 'opname' }) {
             </div>
 
             <div className="w-96 shrink-0 space-y-4">
-              <div className="flex justify-end">
-                <button onClick={handleGenerate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold">
+              <div className="flex justify-end gap-2">
+                <ReportExportButton url={getReportUrl()} token={token} />
+                <button onClick={handleGenerate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-semibold">
                   <Eye className="w-4 h-4" /> Cetak Laporan
                 </button>
               </div>

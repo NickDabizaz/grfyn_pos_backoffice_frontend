@@ -6,7 +6,9 @@ import useTabStore from '../../store/tabStore';
 import api from '../../api/axios';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
 import AdvancedFilter from '../../components/ui/AdvancedFilter';
+import DatePicker from '../../components/ui/DatePicker';
 import LaporanResultPage from './LaporanResultPage';
+import ReportExportButton from './ReportExportButton';
 import laporanConfig from './laporanConfig';
 
 const reportUrl = (endpoint, token, params = {}) => {
@@ -66,7 +68,7 @@ export default function LaporanPage({ kodemenu }) {
 
   const fetchLokasi = () => api.get('/lokasi').then((r) => r.data || []);
 
-  const handleGenerate = () => {
+  const getReportTarget = () => {
     const jenis = config.jenis.find((j) => j.endpoint === selectedJenis) || config.jenis[0];
     const params = { tglwal, tglakhir };
     if (filterLokasi.length) {
@@ -75,11 +77,15 @@ export default function LaporanPage({ kodemenu }) {
     if (advancedFilters.length) {
       params.filters = JSON.stringify(advancedFilters);
     }
+    return { jenis, url: reportUrl(jenis.endpoint, token, params) };
+  };
 
+  const handleGenerate = () => {
+    const { jenis, url } = getReportTarget();
     openTab({
       label    : jenis.label,
       component: LaporanResultPage,
-      props    : { url: reportUrl(jenis.endpoint, token, params), token, label: jenis.label },
+      props    : { url, token, label: jenis.label },
       type     : 'report',
       kodemenu : null,
       icon     : FileBarChart,
@@ -101,19 +107,17 @@ export default function LaporanPage({ kodemenu }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Dari</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={tglwal}
-                    onChange={(e) => setTglwal(e.target.value)}
+                    onChange={setTglwal}
                     className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-dark-300 mb-1">Sampai</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={tglakhir}
-                    onChange={(e) => setTglakhir(e.target.value)}
+                    onChange={setTglakhir}
                     className="w-full px-2 py-2 rounded-lg border border-primary-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500/20"
                   />
                 </div>
@@ -135,10 +139,11 @@ export default function LaporanPage({ kodemenu }) {
 
             {/* ── Kanan: Jenis Laporan + Cetak ─────────────────────────── */}
             <div className="w-96 shrink-0 space-y-4">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <ReportExportButton url={getReportTarget().url} token={token} />
                 <button
                   onClick={handleGenerate}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-semibold transition-all"
                 >
                   <Eye className="w-4 h-4" /> Cetak Laporan
                 </button>

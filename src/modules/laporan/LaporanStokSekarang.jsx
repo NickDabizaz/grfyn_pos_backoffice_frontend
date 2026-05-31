@@ -6,6 +6,7 @@ import { useMenuAccess, canAccess } from '../../hooks/useMenuAccess';
 import { Printer, Package, RefreshCw, X } from 'lucide-react';
 import MultiSelectModal from '../../components/ui/MultiSelectModal';
 import LaporanResultPage from './LaporanResultPage';
+import ReportExportButton from './ReportExportButton';
 
 const reportUrl = (token, params = {}) => {
   const qs = new URLSearchParams({ format: 'html', token, ...params }).toString();
@@ -90,6 +91,8 @@ export default function LaporanStokSekarang() {
     });
   };
 
+  const currentReportUrl = reportUrl(token, lokasi?.idlokasi ? { idlokasi: lokasi.idlokasi } : {});
+
   return (
     <div className="space-y-4 mt-4 ms-4">
       <div className="flex items-center justify-between">
@@ -105,6 +108,7 @@ export default function LaporanStokSekarang() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
+          <ReportExportButton url={currentReportUrl} token={token} />
           <button
             onClick={handleCetak}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold transition-all"
